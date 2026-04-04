@@ -2,7 +2,6 @@ package com.dynamictecnologies.notificationmanager.viewmodel
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.dynamictecnologies.notificationmanager.data.model.AppInfo
 import com.dynamictecnologies.notificationmanager.data.model.NotificationInfo
@@ -16,19 +15,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 
-/**
- * ViewModel para gestión de aplicaciones instaladas y selección de app.
- * Refactorizado para seguir Clean Architecture y SOLID principles.
- * 
- * - Clean Architecture: No tiene lógica de negocio, solo coordina Use Cases
- * 
- * @param getInstalledAppsUseCase Use case para obtener apps instaladas
- * @param saveSelectedAppUseCase Use case para guardar app seleccionada
- * @param getSelectedAppUseCase Use case para recuperar app seleccionada
- * @param notificationRepository Repository para gestión de notificaciones
- */
-class AppListViewModel(
+@HiltViewModel
+class AppListViewModel @Inject constructor(
     private val getInstalledAppsUseCase: GetInstalledAppsUseCase,
     private val saveSelectedAppUseCase: SaveSelectedAppUseCase,
     private val getSelectedAppUseCase: GetSelectedAppUseCase,
@@ -195,30 +186,5 @@ class AppListViewModel(
                 Log.e(TAG, "Error al limpiar datos de apps: ${e.message}")
             }
         }
-    }
-}
-
-/**
- * Factory para crear instancias de AppListViewModel con inyección de dependencias.
- * Refactorizado para usar Use Cases en lugar de dependencias concretas.
- * 
- */
-class AppListViewModelFactory(
-    private val getInstalledAppsUseCase: GetInstalledAppsUseCase,
-    private val saveSelectedAppUseCase: SaveSelectedAppUseCase,
-    private val getSelectedAppUseCase: GetSelectedAppUseCase,
-    private val notificationRepository: NotificationRepository
-) : ViewModelProvider.Factory {
-    @Suppress("UNCHECKED_CAST")
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(AppListViewModel::class.java)) {
-            return AppListViewModel(
-                getInstalledAppsUseCase = getInstalledAppsUseCase,
-                saveSelectedAppUseCase = saveSelectedAppUseCase,
-                getSelectedAppUseCase = getSelectedAppUseCase,
-                notificationRepository = notificationRepository
-            ) as T
-        }
-        throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
     }
 }

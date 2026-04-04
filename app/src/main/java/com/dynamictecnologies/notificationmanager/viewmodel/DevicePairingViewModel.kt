@@ -3,7 +3,6 @@ package com.dynamictecnologies.notificationmanager.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.dynamictecnologies.notificationmanager.data.bluetooth.BluetoothDeviceScanner
 import com.dynamictecnologies.notificationmanager.domain.entities.DevicePairing
@@ -12,25 +11,16 @@ import com.dynamictecnologies.notificationmanager.domain.usecases.device.*
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 
-/**
- * ViewModel para gestión de vinculación de dispositivos Bluetooth/MQTT.
- * 
- * Responsabilidades:
- * - Escaneo de dispositivos Bluetooth
- * - Vinculación con token
- * - Desvinculación
- * - Estado de UI
- * 
- * - Reactive: StateFlow para UI reactiva
- * - Clean Architecture: Usa Use Cases del dominio
- */
-class DevicePairingViewModel(
+@HiltViewModel
+class DevicePairingViewModel @Inject constructor(
     private val scanBluetoothDevicesUseCase: ScanBluetoothDevicesUseCase,
     private val pairDeviceUseCase: PairDeviceWithTokenUseCase,
     private val unpairDeviceUseCase: UnpairDeviceUseCase,
     private val pairingRepository: DevicePairingRepository,
-    private val firebaseAuth: FirebaseAuth = FirebaseAuth.getInstance()
+    private val firebaseAuth: FirebaseAuth
 ) : ViewModel() {
     
     // Estados UI
@@ -132,18 +122,12 @@ class DevicePairingViewModel(
     fun pairDeviceWithToken(token: String) {
         _pairingState.value = PairingState.Pairing
         
-        // Obtener username de Firebase Auth
-        val currentUser = firebaseAuth.currentUser
-        val username = when {
-            !currentUser?.displayName.isNullOrBlank() -> currentUser?.displayName?.take(16) ?: "Usuario"
-            !currentUser?.email.isNullOrBlank() -> currentUser?.email?.substringBefore("@")?.take(16) ?: "Usuario"
-            else -> "Usuario"
-        }
+        val username = getCurrentUsername()
         
         viewModelScope.launch {
             pairDeviceUseCase(
-                bluetoothName = "ESP32_$token",  // Usa el token como identificador
-                bluetoothAddress = "00:00:00:00:00:00",  // Sin dirección Bluetooth
+                bluetoothName = "ESP32_$token",
+                bluetoothAddress = "00:00:00:00:00:00",
                 token = token,
                 username = username
             ).onSuccess {
@@ -163,13 +147,7 @@ class DevicePairingViewModel(
     fun unpairDevice() {
         _pairingState.value = PairingState.Pairing
         
-        // Obtener username de Firebase Auth para notificar al ESP32
-        val currentUser = firebaseAuth.currentUser
-        val username = when {
-            !currentUser?.displayName.isNullOrBlank() -> currentUser?.displayName?.take(16) ?: "Usuario"
-            !currentUser?.email.isNullOrBlank() -> currentUser?.email?.substringBefore("@")?.take(16) ?: "Usuario"
-            else -> "Usuario"
-        }
+        val username = getCurrentUsername()
         
         viewModelScope.launch {
             unpairDeviceUseCase(username).onSuccess {
@@ -195,6 +173,20 @@ class DevicePairingViewModel(
     }
     
     /**
+     * Obtiene el username actual del usuario autenticado en Firebase.
+     * Prioriza displayName, luego email (sin dominio), y fallback a "Usuario".
+     * Limita a 16 caracteres para compatibilidad con LCD del ESP32.
+     */
+    private fun getCurrentUsername(): String {
+        val currentUser = firebaseAuth.currentUser
+        return when {
+            !currentUser?.displayName.isNullOrBlank() -> currentUser?.displayName?.take(16) ?: "Usuario"
+            !currentUser?.email.isNullOrBlank() -> currentUser?.email?.substringBefore("@")?.take(16) ?: "Usuario"
+            else -> "Usuario"
+        }
+    }
+    
+    /**
      * Estados de la interfaz de pairing
      */
     sealed class PairingState {
@@ -202,29 +194,5 @@ class DevicePairingViewModel(
         object Pairing : PairingState()
         object Success : PairingState()
         data class Error(val message: String) : PairingState()
-    }
-}
-
-/**
- * Factory para crear DevicePairingViewModel con inyección de dependencias.
- * 
- */
-class DevicePairingViewModelFactory(
-    private val scanBluetoothDevicesUseCase: ScanBluetoothDevicesUseCase,
-    private val pairDeviceUseCase: PairDeviceWithTokenUseCase,
-    private val unpairDeviceUseCase: UnpairDeviceUseCase,
-    private val pairingRepository: DevicePairingRepository
-) : ViewModelProvider.Factory {
-    @Suppress("UNCHECKED_CAST")
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(DevicePairingViewModel::class.java)) {
-            return DevicePairingViewModel(
-                scanBluetoothDevicesUseCase = scanBluetoothDevicesUseCase,
-                pairDeviceUseCase = pairDeviceUseCase,
-                unpairDeviceUseCase = unpairDeviceUseCase,
-                pairingRepository = pairingRepository
-            ) as T
-        }
-        throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
     }
 }

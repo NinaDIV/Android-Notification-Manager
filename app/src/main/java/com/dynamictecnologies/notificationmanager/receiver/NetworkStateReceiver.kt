@@ -7,7 +7,9 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
 import android.util.Log
-import com.dynamictecnologies.notificationmanager.di.BluetoothMqttModule
+import com.dynamictecnologies.notificationmanager.data.datasource.mqtt.MqttConnectionManager
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -23,7 +25,10 @@ import kotlinx.coroutines.launch
  * - Cambios de red (WiFi/Mobile) pueden desconectar MQTT
  * - El usuario puede apagar/encender WiFi manualmente
  */
+@AndroidEntryPoint
 class NetworkStateReceiver : BroadcastReceiver() {
+    
+    @Inject lateinit var mqttManager: MqttConnectionManager
     
     companion object {
         private const val TAG = "NetworkStateReceiver"
@@ -72,8 +77,6 @@ class NetworkStateReceiver : BroadcastReceiver() {
     private fun tryReconnectMqtt(context: Context) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val mqttManager = BluetoothMqttModule.provideMqttConnectionManager(context)
-                
                 if (!mqttManager.isConnected()) {
                     Log.d(TAG, "MQTT desconectado, intentando reconectar...")
                     val result = mqttManager.connect()

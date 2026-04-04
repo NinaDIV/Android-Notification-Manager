@@ -12,7 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.dynamictecnologies.notificationmanager.util.PermissionHelper
+import com.dynamictecnologies.notificationmanager.util.BatteryOptimizationHelper
 
 /**
  * Tarjeta que muestra el estado de optimización de batería.
@@ -30,12 +30,12 @@ fun BatteryOptimizationCard(
 ) {
     val context = LocalContext.current
     var isOptimized by remember { 
-        mutableStateOf(PermissionHelper.hasBatteryOptimizationExemption(context)) 
+        mutableStateOf(BatteryOptimizationHelper.isIgnoringBatteryOptimizations(context)) 
     }
     
     // Actualizar estado cuando la pantalla se vuelve visible
     LaunchedEffect(Unit) {
-        isOptimized = PermissionHelper.hasBatteryOptimizationExemption(context)
+        isOptimized = BatteryOptimizationHelper.isIgnoringBatteryOptimizations(context)
     }
     
     Card(
@@ -96,7 +96,7 @@ fun BatteryOptimizationCard(
             if (!isOptimized) {
                 Button(
                     onClick = { 
-                        PermissionHelper.requestBatteryOptimizationExemption(context)
+                        BatteryOptimizationHelper.requestIgnoreBatteryOptimizations(context)
                     },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary

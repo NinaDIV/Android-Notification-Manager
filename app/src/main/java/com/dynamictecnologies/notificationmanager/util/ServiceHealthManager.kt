@@ -45,6 +45,8 @@ class ServiceHealthManager(private val context: Context) {
     
     private val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
     
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    
     init {
         registerNetworkCallback()
     }
@@ -54,7 +56,7 @@ class ServiceHealthManager(private val context: Context) {
             .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
             .build()
         
-        connectivityManager.registerNetworkCallback(networkRequest, object : ConnectivityManager.NetworkCallback() {
+        val callback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
                 Log.d(TAG, "Network available")
                 updateInternetStatus(ServiceStatus.HEALTHY)
@@ -64,7 +66,10 @@ class ServiceHealthManager(private val context: Context) {
                 Log.d(TAG, "Network lost")
                 updateInternetStatus(ServiceStatus.DOWN)
             }
-        })
+        }
+        
+        networkCallback = callback
+        connectivityManager.registerNetworkCallback(networkRequest, callback)
     }
     
     private fun updateInternetStatus(status: ServiceStatus) {
@@ -200,5 +205,21 @@ class ServiceHealthManager(private val context: Context) {
         CELLULAR,
         ETHERNET,
         OTHER
+    }
+    
+    /**
+     * Libera recursos. Debe llamarse cuando esta instancia ya no se necesita
+     * para evitar memory leaks del NetworkCallback.
+     */
+    fun destroy() {
+        try {
+            networkCallback?.let {
+                connectivityManager.unregisterNetworkCallback(it)
+                Log.d(TAG, "NetworkCallback des-registrado")
+            }
+            networkCallback = null
+        } catch (e: Exception) {
+            Log.e(TAG, "Error des-registrando NetworkCallback: ${e.message}")
+        }
     }
 }

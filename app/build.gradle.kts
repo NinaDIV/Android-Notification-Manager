@@ -5,8 +5,9 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     id("kotlin-parcelize")
-    id("com.google.devtools.ksp") version "2.0.0-1.0.24"
+    alias(libs.plugins.ksp)
     id("com.google.gms.google-services")
+    alias(libs.plugins.hilt)
 }
 
 android {
@@ -117,6 +118,11 @@ dependencies {
     implementation("androidx.room:room-runtime:$roomVersion")
     implementation("androidx.room:room-ktx:$roomVersion")
     ksp("androidx.room:room-compiler:$roomVersion")
+
+    // Hilt - Dependency Injection
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.compiler)
+    implementation(libs.hilt.navigation.compose)
 
     // Firebase
     implementation(platform("com.google.firebase:firebase-bom:33.9.0"))

@@ -2,7 +2,6 @@ package com.dynamictecnologies.notificationmanager.viewmodel
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.dynamictecnologies.notificationmanager.domain.entities.UserProfile
 import com.dynamictecnologies.notificationmanager.domain.usecases.user.GetUserProfileUseCase
@@ -11,14 +10,11 @@ import com.dynamictecnologies.notificationmanager.domain.usecases.user.RegisterU
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 
-/**
- * ViewModel para gestión de perfiles de usuario.
- * Refactorizado para seguir Clean Architecture y SOLID.
- * 
- * - Clean Architecture: No tiene lógica de negocio, solo coordina UseCases
- */
-class UserViewModel(
+@HiltViewModel
+class UserViewModel @Inject constructor(
     private val getUserProfileUseCase: GetUserProfileUseCase,
     private val registerUsernameUseCase: RegisterUsernameUseCase,
     private val refreshUserProfileUseCase: RefreshUserProfileUseCase
@@ -130,27 +126,5 @@ class UserViewModel(
         _userProfile.value = null
         _errorState.value = null
         Log.d("UserViewModel", "Datos de perfil limpiados")
-    }
-}
-
-/**
- * Factory para crear instancias de UserViewModel con inyección de dependencias.
- * Refactorizado para usar UseCases en vez de Firebase directamente.
- */
-class UserViewModelFactory(
-    private val getUserProfileUseCase: GetUserProfileUseCase,
-    private val registerUsernameUseCase: RegisterUsernameUseCase,
-    private val refreshUserProfileUseCase: RefreshUserProfileUseCase
-) : ViewModelProvider.Factory {
-    @Suppress("UNCHECKED_CAST")
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(UserViewModel::class.java)) {
-            return UserViewModel(
-                getUserProfileUseCase = getUserProfileUseCase,
-                registerUsernameUseCase = registerUsernameUseCase,
-                refreshUserProfileUseCase = refreshUserProfileUseCase
-            ) as T
-        }
-        throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
     }
 }

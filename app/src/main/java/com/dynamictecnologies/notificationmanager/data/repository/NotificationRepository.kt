@@ -7,7 +7,7 @@ import com.dynamictecnologies.notificationmanager.data.cleanup.NotificationClean
 import com.dynamictecnologies.notificationmanager.data.db.NotificationDao
 import com.dynamictecnologies.notificationmanager.data.model.NotificationInfo
 import com.dynamictecnologies.notificationmanager.data.model.SyncStatus
-import com.dynamictecnologies.notificationmanager.data.permissions.NotificationPermissionChecker
+import com.dynamictecnologies.notificationmanager.util.PermissionHelper
 import com.dynamictecnologies.notificationmanager.util.AppNameResolver
 import com.dynamictecnologies.notificationmanager.util.network.NetworkConnectivityChecker
 import kotlinx.coroutines.CoroutineScope
@@ -20,7 +20,7 @@ import kotlinx.coroutines.launch
  * Repositorio de notificaciones REFACTORIZADO.
  * 
  * Ahora solo coordina componentes especializados:
- * - NotificationPermissionChecker: Verificación de permisos
+ * - PermissionHelper: Verificación de permisos
  * - NotificationCleanupService: Limpieza periódica
  * - NetworkConnectivityChecker: Estado de red
  * - AppNameResolver: Resolución de nombres
@@ -36,7 +36,7 @@ class NotificationRepository(
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     
     // Componentes especializados
-    private val permissionChecker = NotificationPermissionChecker(context)
+    private val appContext = context.applicationContext
     private val cleanupService = NotificationCleanupService(
         notificationDao = notificationDao,
         maxNotificationsPerApp = MAX_NOTIFICATIONS_PER_APP
@@ -48,7 +48,10 @@ class NotificationRepository(
     
     init {
         // Verificar permisos al inicializar
-        permissionChecker.checkAndNotify()
+        val hasPermissions = PermissionHelper.hasNotificationListenerPermission(context)
+        if (!hasPermissions) {
+            Log.w(TAG, "NotificationListener no está habilitado")
+        }
         
         // Iniciar limpieza periódica
         val selectedApp = prefs.getString("last_selected_app", null)
@@ -62,7 +65,7 @@ class NotificationRepository(
         Log.d(TAG, "getNotifications para $packageName")
         
         // Verificar permisos
-        if (!permissionChecker.hasPermission()) {
+        if (!PermissionHelper.hasNotificationListenerPermission(appContext)) {
             Log.w(TAG, "Sin permisos - solo datos locales")
             val appName = appNameResolver.getAppName(packageName)
             return notificationDao.getNotificationsForApp(appName).flowOn(Dispatchers.IO)
@@ -95,7 +98,7 @@ class NotificationRepository(
     suspend fun insertNotification(notification: NotificationInfo) {
         try {
             // Verificar permisos
-            if (!permissionChecker.hasPermission()) {
+            if (!PermissionHelper.hasNotificationListenerPermission(appContext)) {
                 Log.w(TAG, "Notificación rechazada: Sin permisos")
                 return
             }
@@ -144,9 +147,13 @@ class NotificationRepository(
     /**
      * Métodos públicos para verificación
      */
-    fun hasNotificationPermissions(): Boolean = permissionChecker.hasPermission()
+    fun hasNotificationPermissions(): Boolean = PermissionHelper.hasNotificationListenerPermission(appContext)
     
-    fun recheckPermissions() = permissionChecker.recheckPermissions()
+    fun recheckPermissions(): Boolean {
+        val has = PermissionHelper.hasNotificationListenerPermission(appContext)
+        if (!has) Log.w(TAG, "Permisos aún no otorgados")
+        return has
+    }
     
     fun isNetworkAvailable(): Boolean = networkChecker.isNetworkAvailable()
     

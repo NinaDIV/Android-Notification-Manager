@@ -4,7 +4,9 @@ import android.app.Application
 import android.util.Log
 import com.google.firebase.FirebaseApp
 import com.google.firebase.database.FirebaseDatabase
+import dagger.hilt.android.HiltAndroidApp
 
+@HiltAndroidApp
 class NotificationManagerApp : Application() {
     override fun onCreate() {
         super.onCreate()
