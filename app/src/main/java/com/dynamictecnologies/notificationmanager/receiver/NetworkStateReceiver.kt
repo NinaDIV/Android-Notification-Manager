@@ -20,7 +20,7 @@ import kotlinx.coroutines.launch
  * 
  * Esto es crucial para mantener la conexión MQTT activa porque:
  * - Doze mode suspende la red periódicamente
- * - Cambios de red (WiFi↔Mobile) pueden desconectar MQTT
+ * - Cambios de red (WiFi/Mobile) pueden desconectar MQTT
  * - El usuario puede apagar/encender WiFi manualmente
  */
 class NetworkStateReceiver : BroadcastReceiver() {

@@ -75,7 +75,7 @@ fun BatteryOptimizationCard(
                     text = if (isOptimized) 
                         "Optimización de batería desactivada" 
                     else 
-                        "⚠️ Optimización de batería activa",
+                        "Optimización de batería activa",
                     style = MaterialTheme.typography.titleSmall,
                     color = if (isOptimized) 
                         MaterialTheme.colorScheme.onSurfaceVariant 
@@ -106,7 +106,7 @@ fun BatteryOptimizationCard(
                 }
             } else {
                 Text(
-                    text = "✓ OK",
+                    text = "Configurado",
                     style = MaterialTheme.typography.labelLarge,
                     color = Color(0xFF4CAF50)
                 )

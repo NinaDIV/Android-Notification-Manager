@@ -95,13 +95,13 @@ class MqttNotificationSender(
             // Retornar el resultado de publish
             val result = connectionManager.publish(topic, payload, qos = 1)
             if (result.isSuccess) {
-                android.util.Log.d(TAG, "✓ Notificación enviada exitosamente a $topic")
+                android.util.Log.d(TAG, "[OK] Notificación enviada exitosamente a $topic")
             } else {
-                android.util.Log.e(TAG, "✗ Error publicando: ${result.exceptionOrNull()?.message}")
+                android.util.Log.e(TAG, "[ERROR] Error publicando: ${result.exceptionOrNull()?.message}")
             }
             result
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "✗ Excepción: ${e.message}", e)
+            android.util.Log.e(TAG, "[ERROR] Excepción: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -157,13 +157,13 @@ class MqttNotificationSender(
             
             val result = connectionManager.publish(topic, payload, qos = 1)
             if (result.isSuccess) {
-                android.util.Log.d(TAG, "✓ Notificación de conexión enviada a $topic")
+                android.util.Log.d(TAG, "[OK] Notificación de conexión enviada a $topic")
             } else {
-                android.util.Log.e(TAG, "✗ Error enviando notificación de conexión")
+                android.util.Log.e(TAG, "[ERROR] Error enviando notificación de conexión")
             }
             result
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "✗ Excepción: ${e.message}", e)
+            android.util.Log.e(TAG, "[ERROR] Excepción: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -196,13 +196,13 @@ class MqttNotificationSender(
             
             val result = connectionManager.publish(topic, payload, qos = 1)
             if (result.isSuccess) {
-                android.util.Log.d(TAG, "✓ Notificación de desconexión enviada a $topic")
+                android.util.Log.d(TAG, "[OK] Notificación de desconexión enviada a $topic")
             } else {
-                android.util.Log.e(TAG, "✗ Error enviando notificación de desconexión")
+                android.util.Log.e(TAG, "[ERROR] Error enviando notificación de desconexión")
             }
             result
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "✗ Excepción: ${e.message}", e)
+            android.util.Log.e(TAG, "[ERROR] Excepción: ${e.message}", e)
             Result.failure(e)
         }
     }

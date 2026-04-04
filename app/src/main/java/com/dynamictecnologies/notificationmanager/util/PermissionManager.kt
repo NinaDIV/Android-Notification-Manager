@@ -57,8 +57,8 @@ object PermissionManager {
             .setTitle("Permiso Requerido")
             .setMessage(
                 "Esta app necesita acceso a las notificaciones para:\n\n" +
-                "• Capturar notificaciones del sistema\n" +
-                "• Enviarlas a tu dispositivo ESP32\n\n" +
+                "- Capturar notificaciones del sistema\n" +
+                "- Enviarlas a tu dispositivo ESP32\n\n" +
                 "Por favor, habilita el acceso en la siguiente pantalla."
             )
             .setPositiveButton("Configurar") { dialog, _ ->

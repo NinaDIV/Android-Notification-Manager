@@ -83,7 +83,7 @@ class BootReceiver : BroadcastReceiver() {
                         delay(15000) // Esperar un poco más para que la UI esté lista
                         val permIntent = Intent("com.dynamictecnologies.notificationmanager.SHOW_PERMISSION_DIALOG")
                         context.sendBroadcast(permIntent)
-                        Log.d(TAG, "📣 Solicitando mostrar diálogo de permisos")
+                        Log.d(TAG, "[INFO] Solicitando mostrar diálogo de permisos")
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Error al iniciar servicio tras arranque: ${e.message}")

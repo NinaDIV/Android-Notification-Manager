@@ -54,17 +54,17 @@ fun DeviceSelectionDialog(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            "• El ESP32 esté encendido",
+                            "- El ESP32 esté encendido",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            "• El Bluetooth del teléfono esté activado",
+                            "- El Bluetooth del teléfono esté activado",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            "• El dispositivo esté cerca",
+                            "- El dispositivo esté cerca",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

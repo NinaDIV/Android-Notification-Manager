@@ -122,7 +122,7 @@ class AuthValidator(
             ValidationError.WEAK_PASSWORD -> {
                 if (details.isNotEmpty()) {
                     AuthStrings.ValidationErrors.WEAK_PASSWORD_WITH_DETAILS + 
-                        details.joinToString("\n• ", prefix = "• ")
+                        details.joinToString("\n- ", prefix = "- ")
                 } else {
                     AuthStrings.ValidationErrors.WEAK_PASSWORD
                 }
