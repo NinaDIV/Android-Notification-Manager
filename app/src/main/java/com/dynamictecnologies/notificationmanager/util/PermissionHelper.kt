@@ -222,10 +222,10 @@ object PermissionHelper {
                             "4. Busca 'Acceso de notificaciones' o 'Notification access'\n" +
                             "5. Encuentra 'Notification Manager'\n" +
                             "6. Activa el interruptor\n\n" +
-                            "📍 **Ubicaciones comunes:**\n" +
-                            "• Configuración → Notificaciones → Acceso de notificaciones\n" +
-                            "• Configuración → Seguridad → Acceso de notificaciones\n" +
-                            "• Configuración → Aplicaciones → Permisos especiales"
+                            "**Ubicaciones comunes:**\n" +
+                            "- Configuración -> Notificaciones -> Acceso de notificaciones\n" +
+                            "- Configuración -> Seguridad -> Acceso de notificaciones\n" +
+                            "- Configuración -> Aplicaciones -> Permisos especiales"
                 )
                 .setPositiveButton("Entendido", null)
                 .show()
@@ -248,7 +248,7 @@ object PermissionHelper {
         } else {
             Log.w(TAG, "Estado de permisos: INACTIVOS")
             Log.w(TAG, "La app NO puede recolectar notificaciones")
-            Log.w(TAG, "Es necesario otorgar permisos en: Configuración → Notificaciones → Acceso de notificaciones")
+            Log.w(TAG, "Es necesario otorgar permisos en: Configuración -> Notificaciones -> Acceso de notificaciones")
         }
 
         // Log adicional para debugging

@@ -32,9 +32,9 @@ object ServiceStateManager {
      * - DISABLED (GRIS): Usuario eligió "Entendido", no molestar
      */
     enum class ServiceState {
-        RUNNING,    // 🟢 Operativo completo
-        DEGRADED,   // 🟡 Advertencia: permisos o conectividad degradada
-        STOPPED,    // 🔴 Servicio detenido
+        RUNNING,    // [OK] Operativo completo
+        DEGRADED,   // [WARN] Advertencia: permisos o conectividad degradada
+        STOPPED,    // [ERROR] Servicio detenido
         DISABLED    // Usuario eligió "Entendido"
     }
     

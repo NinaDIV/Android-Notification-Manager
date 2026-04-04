@@ -115,7 +115,7 @@ class ServiceHealthManager(private val context: Context) {
             
             // Firebase caído
             firebaseStatus == ServiceStatus.DOWN ->
-                "🔥 El servicio de sincronización está temporalmente no disponible. " +
+                "El servicio de sincronización está temporalmente no disponible. " +
                 "La app funcionará en modo offline. Tus datos se sincronizarán cuando el servicio se recupere."
             
             // MQTT caído

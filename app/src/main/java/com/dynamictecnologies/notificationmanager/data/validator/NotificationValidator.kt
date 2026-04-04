@@ -102,8 +102,8 @@ class NotificationValidator {
      * 
      * Evita cortar:
      * - Surrogate pairs (emojis básicos)
-     * - Secuencias ZWJ (emojis compuestos como 👨‍👩‍👧‍👦)
-     * - Regional indicators (banderas como 🇪🇸)
+     * - Secuencias ZWJ (emojis compuestos)
+     * - Regional indicators (banderas)
      * - Skin tone modifiers
      */
     private fun truncateUnicodeSafe(text: String, maxLength: Int): String {

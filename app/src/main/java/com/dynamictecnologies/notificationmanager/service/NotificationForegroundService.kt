@@ -156,7 +156,7 @@ class NotificationForegroundService : Service() {
                 false,
                 permissionObserver!!
             )
-            Log.d(TAG, "✅ ContentObserver registrado para permisos")
+            Log.d(TAG, "[OK] ContentObserver registrado para permisos")
         } catch (e: Exception) {
             Log.e(TAG, "Error registrando ContentObserver: ${e.message}")
         }
@@ -170,9 +170,9 @@ class NotificationForegroundService : Service() {
         val hasPermission = NotificationListenerService.isNotificationListenerEnabled(this)
         
         if (!hasPermission) {
-            Log.w(TAG, "⚠️ Permiso de NotificationListener revocado")
+            Log.w(TAG, "[WARN] Permiso de NotificationListener revocado")
             
-            // OBSERVER: Permiso revocado → 🟡 Amarillo
+            // OBSERVER: Permiso revocado -> DEGRADED
             ServiceStateManager.setDegradedState(this, ServiceStateManager.DegradedReason.PERMISSION_REVOKED)
             
             // Detener el foreground para quitar la notificación verde
@@ -189,7 +189,7 @@ class NotificationForegroundService : Service() {
             // Si el permiso fue restaurado y estábamos en DEGRADED, volver a RUNNING
             val currentState = ServiceStateManager.getCurrentState(this)
             if (currentState == ServiceStateManager.ServiceState.DEGRADED) {
-                Log.d(TAG, "✅ Permiso restaurado - volviendo a estado RUNNING")
+                Log.d(TAG, "[OK] Permiso restaurado - volviendo a estado RUNNING")
                 ServiceStateManager.setState(this, ServiceStateManager.ServiceState.RUNNING)
                 ServiceNotificationManager(this).showRunningNotification()
             }
@@ -224,7 +224,7 @@ class NotificationForegroundService : Service() {
                 }
             }
             registerReceiver(powerStateReceiver, filter)
-            Log.d(TAG, "✅ BroadcastReceiver registrado para estados de energía")
+            Log.d(TAG, "[OK] BroadcastReceiver registrado para estados de energía")
         } catch (e: Exception) {
             Log.e(TAG, "Error registrando BroadcastReceiver: ${e.message}")
         }
@@ -243,7 +243,7 @@ class NotificationForegroundService : Service() {
         } else false
         
         if (isPowerSave || isDoze) {
-            Log.w(TAG, "⚠️ Modo ahorro detectado: PowerSave=$isPowerSave, Doze=$isDoze")
+            Log.w(TAG, "[WARN] Modo ahorro detectado: PowerSave=$isPowerSave, Doze=$isDoze")
             
             // Solo mostrar advertencia si el servicio sigue corriendo
             val currentState = ServiceStateManager.getCurrentState(this)
@@ -257,7 +257,7 @@ class NotificationForegroundService : Service() {
             // Si salimos del modo ahorro, restaurar notificación verde
             val currentState = ServiceStateManager.getCurrentState(this)
             if (currentState == ServiceStateManager.ServiceState.RUNNING) {
-                Log.d(TAG, "✅ Modo ahorro desactivado - restaurando estado normal")
+                Log.d(TAG, "[OK] Modo ahorro desactivado - restaurando estado normal")
                 ServiceNotificationManager(this).showRunningNotification()
             }
         }
@@ -281,7 +281,7 @@ class NotificationForegroundService : Service() {
         try {
             val filter = IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION)
             registerReceiver(networkChangeReceiver, filter)
-            Log.d(TAG, "✅ BroadcastReceiver registrado para cambios de red")
+            Log.d(TAG, "[OK] BroadcastReceiver registrado para cambios de red")
         } catch (e: Exception) {
             Log.e(TAG, "Error registrando BroadcastReceiver de red: ${e.message}")
         }
@@ -303,12 +303,12 @@ class NotificationForegroundService : Service() {
         }
         
         if (isConnected) {
-            Log.d(TAG, "✅ Red disponible - solicitando reconexión MQTT")
+            Log.d(TAG, "[OK] Red disponible - solicitando reconexión MQTT")
             // Enviar broadcast para que MqttConnectionManager reconecte
             val reconnectIntent = Intent("com.dynamictecnologies.notificationmanager.MQTT_RECONNECT")
             sendBroadcast(reconnectIntent)
         } else {
-            Log.w(TAG, "⚠️ Sin conexión de red")
+            Log.w(TAG, "[WARN] Sin conexión de red")
         }
     }
 
@@ -354,7 +354,7 @@ class NotificationForegroundService : Service() {
             while (isActive) {
                 // Actualizar timestamp
                 prefs.edit().putLong("service_last_heartbeat", System.currentTimeMillis()).apply()
-                Log.d(TAG, "💓 Heartbeat actualizado")
+                Log.d(TAG, "[STATUS] Heartbeat actualizado")
                 
                 delay(HEARTBEAT_INTERVAL)
             }
@@ -394,7 +394,7 @@ class NotificationForegroundService : Service() {
                 "NotificationManager::ServiceWakeLock"
             )
             wakeLock?.acquire(10 * 60 * 60 * 1000L) // 10 horas
-            Log.d(TAG, "🔋 WakeLock renovado exitosamente")
+            Log.d(TAG, "[OK] WakeLock renovado exitosamente")
         } catch (e: Exception) {
             Log.e(TAG, "Error renovando WakeLock: ${e.message}", e)
         }
@@ -406,7 +406,7 @@ class NotificationForegroundService : Service() {
      */
     private fun checkBatteryOptimization() {
         if (!BatteryOptimizationHelper.isIgnoringBatteryOptimizations(this)) {
-            Log.w(TAG, "⚠️ App NO está exenta de optimización de batería - servicio puede detenerse en Doze mode")
+            Log.w(TAG, "[WARN] App NO está exenta de optimización de batería - servicio puede detenerse en Doze mode")
             
             // Guardar que necesitamos solicitar exención (para mostrar en UI)
             val prefs = getSharedPreferences("service_state", Context.MODE_PRIVATE)
@@ -422,7 +422,7 @@ class NotificationForegroundService : Service() {
                 }
             }
         } else {
-            Log.d(TAG, "✅ App está exenta de optimización de batería")
+            Log.d(TAG, "[OK] App está exenta de optimización de batería")
             val prefs = getSharedPreferences("service_state", Context.MODE_PRIVATE)
             prefs.edit().putBoolean("needs_battery_exemption", false).apply()
         }
@@ -678,7 +678,7 @@ class NotificationForegroundService : Service() {
         // Si llegamos aquí, el servicio murió inesperadamente
         Log.w(TAG, "Servicio murió inesperadamente")
         
-        // OBSERVER: Muerte inesperada → 🔴 Rojo
+        // OBSERVER: Muerte inesperada -> STOPPED
         ServiceStateManager.setState(this, ServiceStateManager.ServiceState.STOPPED)
         ServiceNotificationManager(this).showStoppedNotification(
             ServiceNotificationManager.StopReason.UNEXPECTED

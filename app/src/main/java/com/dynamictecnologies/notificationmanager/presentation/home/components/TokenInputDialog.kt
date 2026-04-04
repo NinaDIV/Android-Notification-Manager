@@ -74,7 +74,7 @@ fun TokenInputDialog(
                                 token.isEmpty() -> "Ingrese el token (${TokenValidator.TOKEN_LENGTH} caracteres)"
                                 remainingChars > 0 -> "Faltan $remainingChars caracteres"
                                 isValid -> "Token válido"
-                                else -> "✗ Token inválido"
+                                else -> "Token inválido"
                             },
                             color = when {
                                 isValid -> MaterialTheme.colorScheme.primary

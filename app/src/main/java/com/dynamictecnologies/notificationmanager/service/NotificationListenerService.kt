@@ -208,7 +208,7 @@ class NotificationListenerService : NotificationListenerService() {
             .putLong("last_connection_time", System.currentTimeMillis())
             .apply()
         
-        // OBSERVER: Conexión exitosa → 🟢 Verde
+        // OBSERVER: Conexión exitosa -> VERDE
         ServiceStateManager.setState(applicationContext, ServiceStateManager.ServiceState.RUNNING)
         ServiceNotificationManager(applicationContext).showRunningNotification()
         
@@ -220,7 +220,7 @@ class NotificationListenerService : NotificationListenerService() {
         super.onListenerDisconnected()
         Log.w(TAG, "Listener desconectado")
         
-        // OBSERVER: Desconexión inesperada → 🔴 Rojo
+        // OBSERVER: Desconexión inesperada -> ROJO
         ServiceStateManager.setState(applicationContext, ServiceStateManager.ServiceState.STOPPED)
         ServiceNotificationManager(applicationContext).showStoppedNotification(
             ServiceNotificationManager.StopReason.UNEXPECTED

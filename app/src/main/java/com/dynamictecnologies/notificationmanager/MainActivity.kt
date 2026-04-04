@@ -98,11 +98,11 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
-            Log.d("MainActivity", "\u2705 Permiso POST_NOTIFICATIONS otorgado")
+            Log.d("MainActivity", "[OK] Permiso POST_NOTIFICATIONS otorgado")
             // Iniciar servicio después de obtener permiso
             startNotificationService()
         } else {
-            Log.w("MainActivity", "\u26a0\ufe0f Permiso POST_NOTIFICATIONS denegado")
+            Log.w("MainActivity", "[WARN] Permiso POST_NOTIFICATIONS denegado")
             // Mostrar diálogo explicativo
             showNotificationPermissionRationale()
         }
@@ -233,11 +233,11 @@ class MainActivity : ComponentActivity() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
                 "com.dynamictecnologies.notificationmanager.NEED_PERMISSIONS" -> {
-                    Log.d("MainActivity", "📢 Recibida solicitud de mostrar permisos")
+                    Log.d("MainActivity", "[INFO] Recibida solicitud de mostrar permisos")
                     showPermissionDialog()
                 }
                 "com.dynamictecnologies.notificationmanager.SHOW_PERMISSION_DIALOG" -> {
-                    Log.d("MainActivity", "📢 Recibida solicitud de mostrar diálogo de permisos")
+                    Log.d("MainActivity", "[INFO] Recibida solicitud de mostrar diálogo de permisos")
                     showPermissionDialog()
                 }
                 "com.dynamictecnologies.notificationmanager.PERMISSIONS_GRANTED" -> {
@@ -412,7 +412,7 @@ class MainActivity : ComponentActivity() {
             registerReceiver(
                 permissionBroadcastReceiver,
                 filter,
-                Context.RECEIVER_NOT_EXPORTED  // ← REQUERIDO EN ANDROID 13+
+                Context.RECEIVER_NOT_EXPORTED  // <- REQUERIDO EN ANDROID 13+
             )
         } else {
             registerReceiver(permissionBroadcastReceiver, filter)
