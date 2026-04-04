@@ -4,9 +4,6 @@ import android.content.Intent
 import android.os.Parcelable
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.createSavedStateHandle
-import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewModelScope
 import com.dynamictecnologies.notificationmanager.data.constants.AuthStrings
 import com.dynamictecnologies.notificationmanager.data.exceptions.AuthException
@@ -30,8 +27,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.parcelize.Parcelize
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 
-class AuthViewModel(
+@HiltViewModel
+class AuthViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
     private val authRepository: AuthRepository,
     private val signInWithEmailUseCase: SignInWithEmailUseCase,
@@ -436,39 +436,4 @@ class AuthViewModel(
         savedStateHandle[KEY_LOGIN_FORM] = LoginFormState()
     }
 
-    class Factory(
-        private val authRepository: AuthRepository,
-        private val signInWithEmailUseCase: SignInWithEmailUseCase,
-        private val registerUserWithUsernameUseCase: RegisterUserWithUsernameUseCase,
-        private val signInWithGoogleUseCase: SignInWithGoogleUseCase,
-        private val signOutUseCase: SignOutUseCase,
-        private val getCurrentUserUseCase: GetCurrentUserUseCase,
-        private val validateSessionUseCase: ValidateSessionUseCase,
-        private val googleSignInHelper: GoogleSignInHelper,
-        private val errorMapper: AuthErrorMapper,
-        private val authValidator: com.dynamictecnologies.notificationmanager.data.validator.AuthValidator,
-        private val usernameValidator: com.dynamictecnologies.notificationmanager.data.validator.UsernameValidator
-    ) : ViewModelProvider.Factory {
-        @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
-            if (modelClass.isAssignableFrom(AuthViewModel::class.java)) {
-                val savedStateHandle = extras.createSavedStateHandle()
-                return AuthViewModel(
-                    savedStateHandle,
-                    authRepository,
-                    signInWithEmailUseCase,
-                    registerUserWithUsernameUseCase,
-                    signInWithGoogleUseCase,
-                    signOutUseCase,
-                    getCurrentUserUseCase,
-                    validateSessionUseCase,
-                    googleSignInHelper,
-                    errorMapper,
-                    authValidator,
-                    usernameValidator
-                ) as T
-            }
-            throw IllegalArgumentException("Unknown ViewModel class")
-        }
-    }
 }

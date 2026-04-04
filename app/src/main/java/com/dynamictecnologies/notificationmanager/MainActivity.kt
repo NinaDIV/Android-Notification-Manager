@@ -30,9 +30,6 @@ import com.dynamictecnologies.notificationmanager.viewmodel.*
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
-import com.dynamictecnologies.notificationmanager.di.AuthModule
-import com.dynamictecnologies.notificationmanager.di.AppModule
-import com.dynamictecnologies.notificationmanager.di.BluetoothMqttModule
 import com.dynamictecnologies.notificationmanager.worker.ServiceHealthCheckWorker
 import androidx.work.WorkManager
 import androidx.work.PeriodicWorkRequestBuilder
@@ -52,9 +49,10 @@ import android.app.AlertDialog
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import com.dynamictecnologies.notificationmanager.domain.repositories.AuthRepository
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.SupervisorJob
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     
     companion object {
@@ -64,34 +62,15 @@ class MainActivity : ComponentActivity() {
     // Estado Compose para el diálogo de permisos
     private var showPermissionDialogState = mutableStateOf(false)
 
-    // Crear authRepository compartido
-    private val authRepository: AuthRepository by lazy {
-        AuthModule.provideAuthRepository(
-            context = applicationContext
-        )
-    }
-
-    private val authViewModel: AuthViewModel by viewModels {
-        AuthModule.provideAuthViewModelFactory(
-            context = applicationContext
-        )
-    }
-
-    private val userViewModel: UserViewModel by viewModels {
-        AuthModule.provideUserViewModelFactory(authRepository)
-    }
-
-    private val appListViewModel: AppListViewModel by viewModels {
-        AppModule.provideAppListViewModelFactory(
-            context = applicationContext,
-            notificationRepository = createRepository()
-        )
-    }
-
-    // Nuevo ViewModel para pairing Bluetooth
-    private val devicePairingViewModel: com.dynamictecnologies.notificationmanager.viewmodel.DevicePairingViewModel by viewModels {
-        com.dynamictecnologies.notificationmanager.di.BluetoothMqttModule.provideDevicePairingViewModelFactory(applicationContext)
-    }
+    // ViewModels inyectados por Hilt (reemplaza factories manuales)
+    private val authViewModel: AuthViewModel by viewModels()
+    private val userViewModel: UserViewModel by viewModels()
+    private val appListViewModel: AppListViewModel by viewModels()
+    private val devicePairingViewModel: DevicePairingViewModel by viewModels()
+    
+    // Repositorios inyectados por Hilt
+    @Inject lateinit var notificationRepository: NotificationRepository
+    @Inject lateinit var authRepository: AuthRepository
     
     // Permission launcher para POST_NOTIFICATIONS (Android 13+)
     private val notificationPermissionLauncher = registerForActivityResult(
@@ -508,7 +487,7 @@ class MainActivity : ComponentActivity() {
     private fun notifyPermissionGranted() {
         try {
             // Notificar al repositorio que rechecke permisos
-            val repository = createRepository()
+            val repository = notificationRepository
             repository.recheckPermissions()
 
             Log.d("MainActivity", "Repositorio notificado sobre permisos otorgados")
@@ -532,14 +511,5 @@ class MainActivity : ComponentActivity() {
         } catch (e: Exception) {
             Log.e("MainActivity", "Error iniciando servicio: ${e.message}", e)
         }
-    }
-
-    /**
-     * Provee NotificationRepository como singleton via AppModule.
-     * ANTES: Creaba nueva instancia cada vez (memory leak potencial).
-     * AHORA: Usa singleton con double-checked locking.
-     */
-    private fun createRepository(): NotificationRepository {
-        return AppModule.provideNotificationRepository(applicationContext)
     }
 }

@@ -113,12 +113,6 @@
             </intent-filter>
         </receiver>
 
-        <!-- Receiver para reinicio de servicio (AlarmManager backup) -->
-        <receiver
-            android:name=".service.ServiceRestartReceiver"
-            android:enabled="true"
-            android:exported="false" />
-
         <!-- Receiver para acciones de notificación (Detener/Reiniciar/Entendido) -->
         <receiver
             android:name=".service.ServiceActionReceiver"

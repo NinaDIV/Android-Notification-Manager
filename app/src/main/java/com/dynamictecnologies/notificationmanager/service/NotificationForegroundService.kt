@@ -709,26 +709,9 @@ class NotificationForegroundService : Service() {
             Log.e(TAG, "Error en reinicio directo: ${e.message}")
         }
         
-        // MÉTODO 2: AlarmManager como backup
-        try {
-            val alarmManager = getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
-            val restartIntent = Intent(applicationContext, ServiceRestartReceiver::class.java)
-            val pendingIntent = PendingIntent.getBroadcast(
-                applicationContext,
-                1001,
-                restartIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            
-            alarmManager.setExactAndAllowWhileIdle(
-                android.app.AlarmManager.RTC_WAKEUP,
-                System.currentTimeMillis() + 5000,
-                pendingIntent
-            )
-            Log.d(TAG, "AlarmManager backup programado para 5 segundos")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error programando AlarmManager: ${e.message}")
-        }
+        // NOTA: La recuperación del servicio se maneja mediante:
+        // 1. START_STICKY (reinicio automático del sistema)
+        // 2. WorkManager watchdog (verificación periódica cada 15 min)
     }
 
     private fun checkNotificationService() {

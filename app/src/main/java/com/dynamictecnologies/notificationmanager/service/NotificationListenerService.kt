@@ -13,7 +13,8 @@ import android.util.Log
 import com.dynamictecnologies.notificationmanager.data.db.NotificationDatabase
 import com.dynamictecnologies.notificationmanager.data.model.NotificationInfo
 import com.dynamictecnologies.notificationmanager.data.repository.NotificationRepository
-import com.dynamictecnologies.notificationmanager.di.BluetoothMqttModule
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 import com.dynamictecnologies.notificationmanager.service.strategy.*
 import com.dynamictecnologies.notificationmanager.util.device.DeviceManufacturerDetector
 import com.dynamictecnologies.notificationmanager.util.notification.ServiceCrashNotifier
@@ -26,8 +27,9 @@ import java.util.concurrent.atomic.AtomicBoolean
  * Servicio de escucha de notificaciones refactorizado siguiendo principios SOLID.
  * 
  * Buenas prácticas aplicadas:
- * - DI Manual: Usa BluetoothMqttModule para obtener dependencias
+ * - Hilt DI: Usa @AndroidEntryPoint para inyectar repositorios y use cases.
  */
+@AndroidEntryPoint
 class NotificationListenerService : NotificationListenerService() {
     
     companion object {
@@ -70,10 +72,10 @@ class NotificationListenerService : NotificationListenerService() {
         }
     }
     
-    // Core components (Manual DI)
-    private lateinit var repository: NotificationRepository
-    private lateinit var sendNotificationUseCase: com.dynamictecnologies.notificationmanager.domain.usecases.device.SendNotificationToDeviceUseCase
-    private lateinit var devicePairingRepository: com.dynamictecnologies.notificationmanager.domain.repositories.DevicePairingRepository
+    // Core components inyectados por Hilt
+    @Inject lateinit var repository: NotificationRepository
+    @Inject lateinit var sendNotificationUseCase: com.dynamictecnologies.notificationmanager.domain.usecases.device.SendNotificationToDeviceUseCase
+    @Inject lateinit var devicePairingRepository: com.dynamictecnologies.notificationmanager.domain.repositories.DevicePairingRepository
     
     // Estado de inicialización - true si componentes fallaron al inicializar
     private val isDegraded = AtomicBoolean(false)
@@ -126,21 +128,8 @@ class NotificationListenerService : NotificationListenerService() {
      */
     private fun initializeComponents() {
         try {
-            // Core - Repository
-            val database = NotificationDatabase.getDatabase(applicationContext)
-            repository = NotificationRepository(
-                notificationDao = database.notificationDao(),
-                context = applicationContext
-            )
-            
-            // MQTT Components (manual DI)
-            val mqttConnectionManager = BluetoothMqttModule.provideMqttConnectionManager(applicationContext)
-            val mqttSender = BluetoothMqttModule.provideMqttNotificationSender(mqttConnectionManager)
-            devicePairingRepository = BluetoothMqttModule.provideDevicePairingRepository(applicationContext)
-            sendNotificationUseCase = BluetoothMqttModule.provideSendNotificationToDeviceUseCase(
-                devicePairingRepository,
-                mqttSender
-            )
+            // Core - Repository (Inyectados automáticamente por Hilt)
+            // No es necesario instanciarlos manualmente
             
             // OEM detection
             deviceDetector = DeviceManufacturerDetector()
