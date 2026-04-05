@@ -21,10 +21,7 @@ import javax.inject.Inject
 class ServiceActionReceiver : BroadcastReceiver() {
     
     @Inject
-    lateinit var serviceStateManager: ServiceStateManager
-    
-    @Inject
-    lateinit var serviceNotificationManager: ServiceNotificationManager
+    lateinit var actionHandler: ServiceActionHandler
     
     companion object {
         private const val TAG = "ServiceAction"
@@ -38,116 +35,9 @@ class ServiceActionReceiver : BroadcastReceiver() {
         Log.d(TAG, "Action received: ${intent.action}")
         
         when (intent.action) {
-            ACTION_STOP_SERVICE -> handleStopService(context)
-            ACTION_RESTART_SERVICE -> handleRestartService(context)
-            ACTION_ACKNOWLEDGE -> handleAcknowledge(context)
+            ACTION_STOP_SERVICE -> actionHandler.handleStopService(context)
+            ACTION_RESTART_SERVICE -> actionHandler.handleRestartService(context)
+            ACTION_ACKNOWLEDGE -> actionHandler.handleAcknowledge(context)
         }
-    }
-    
-    /**
-     * Maneja el botón DETENER de la notificación.
-     * El usuario quiere detener el servicio temporalmente.
-     */
-    private fun handleStopService(context: Context) {
-        Log.d(TAG, "Usuario presionó DETENER")
-        
-        // IMPORTANTE: Cambiar estado a STOPPED de forma SÍNCRONA
-        // para evitar race condition con auto-restart en onDestroy()
-        serviceStateManager.setStateSync(ServiceStateManager.ServiceState.STOPPED)
-        
-        // Detener el servicio
-        try {
-            context.stopService(Intent(context, NotificationForegroundService::class.java))
-            Log.d(TAG, "Servicio detenido exitosamente")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error deteniendo servicio: ${e.message}")
-        }
-        
-        // Mostrar notificación NARANJA (usuario detuvo intencionalmente)
-        serviceNotificationManager.showStoppedNotification(
-            ServiceNotificationManager.StopReason.USER_STOP
-        )
-        
-        Log.d(TAG, "Servicio detenido por el usuario. Notificación mostrada.")
-    }
-    
-    /**
-     * Maneja el botón REINICIAR de la notificación stopped.
-     * El usuario quiere volver a activar el servicio.
-     */
-    private fun handleRestartService(context: Context) {
-        Log.d(TAG, "Usuario presionó REINICIAR")
-        
-        // Cambiar estado a RUNNING
-        serviceStateManager.setState(ServiceStateManager.ServiceState.RUNNING)
-        
-        // Resetear contador (puede mostrar stopped notification otra vez si vuelve a morir)
-        serviceStateManager.resetStoppedCounter()
-        
-        // Reiniciar el servicio
-        try {
-            val intent = Intent(context, NotificationForegroundService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(intent)
-            } else {
-                context.startService(intent)
-            }
-            
-            Log.d(TAG, "Servicio reiniciado exitosamente")
-            
-            // Ocultar notificación roja explícitamente (verde se mostrará en onCreate del servicio)
-            serviceNotificationManager.hideAllNotifications()
-        } catch (e: Exception) {
-            Log.e(TAG, "Error reiniciando servicio: ${e.message}")
-            
-            // Si falla, volver a mostrar notificación de error
-            serviceNotificationManager.showStoppedNotification(ServiceNotificationManager.StopReason.ERROR)
-        }
-        
-        // La notificación de running se mostrará en onCreate() del servicio
-    }
-    
-    /**
-     * Maneja el botón ENTENDIDO de la notificación stopped.
-     * El usuario NO quiere usar el servicio, detener TODO.
-     */
-    private fun handleAcknowledge(context: Context) {
-        Log.d(TAG, "Usuario presionó ENTENDIDO - Deteniendo todo definitivamente")
-        
-        // Cambiar estado a DISABLED
-        serviceStateManager.setState(ServiceStateManager.ServiceState.DISABLED)
-        
-        // Detener el servicio
-        try {
-            context.stopService(Intent(context, NotificationForegroundService::class.java))
-            Log.d(TAG, "Servicio detenido")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error deteniendo servicio: ${e.message}")
-        }
-        
-        // Cancelar AlarmManager
-        try {
-            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-            // El ServiceRestartReceiver ya no reiniciará nada
-            // porque el estado es DISABLED
-            Log.d(TAG, "AlarmManager aware of DISABLED state")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error con AlarmManager: ${e.message}")
-        }
-        
-        // Opcionalmente: WorkManager para persistencia de reintentos
-        // No implementado actualmente - servicios en foreground tienen reinicio automático del sistema
-        // Solo necesario si se implementa Phase 2 con tareas background complejas
-        // try {
-        //     WorkManager.getInstance(context).cancelAllWork()
-        //     Log.d(TAG, "WorkManager cancelado")
-        // } catch (e: Exception) {
-        //     Log.e(TAG, "Error cancelando WorkManager: ${e.message}")
-        // }
-        
-        // Ocultar todas las notificaciones
-        serviceNotificationManager.hideAllNotifications()
-        
-        Log.d(TAG, "TODO detenido. Solo se reactivará cuando usuario abra la app de nuevo")
     }
 }

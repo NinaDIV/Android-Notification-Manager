@@ -18,13 +18,17 @@ class ServiceDeathDetector @Inject constructor(
     @ServicePrefs private val servicePrefs: android.content.SharedPreferences
 ) {
     
-    private const val TAG = "ServiceDeathDetector"
-    private const val KEY_LAST_KNOWN_STATE = "last_known_running_state"
-    private const val KEY_LAST_HEARTBEAT = "service_last_heartbeat"
+    companion object {
+        private const val TAG = "ServiceDeathDetector"
+        private const val KEY_LAST_KNOWN_STATE = "last_known_running_state"
+        private const val KEY_LAST_HEARTBEAT = "service_last_heartbeat"
+        private const val KEY_SHOULD_BE_RUNNING = "service_should_be_running"
+        private const val HEARTBEAT_TIMEOUT = 12 * 60 * 1000L // 12 minutos
+    }
     
     fun wasServiceKilledUnexpectedly(): Boolean {
         val currentState = serviceStateManager.getCurrentState()
-        val shouldBeRunning = servicePrefs.getBoolean("service_should_be_running", false)
+        val shouldBeRunning = servicePrefs.getBoolean(KEY_SHOULD_BE_RUNNING, false)
         val lastHeartbeat = servicePrefs.getLong(KEY_LAST_HEARTBEAT, 0)
         
         if (currentState == ServiceStateManager.ServiceState.DISABLED) {

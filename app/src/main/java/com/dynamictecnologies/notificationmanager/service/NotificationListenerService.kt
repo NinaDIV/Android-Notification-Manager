@@ -351,7 +351,7 @@ class NotificationListenerService : NotificationListenerService() {
     private fun getPrefs() = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     
     private fun getSelectedApp() = 
-        preferencesRepository.getLastSelectedApp()
+        preferencesRepository.getSelectedApp()
     
     private fun getAppName(packageName: String): String {
         return try {

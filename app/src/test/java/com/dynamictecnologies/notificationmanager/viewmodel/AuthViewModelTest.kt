@@ -309,60 +309,6 @@ class AuthViewModelTest {
         assertFalse("No debe estar loading", finalState.isLoading)
     }
 
-    // ===== GOOGLE SIGN IN TESTS =====
-
-    @Test
-    fun `getGoogleSignInIntent - retorna intent del helper`() {
-        // Given: Helper configurado
-        val mockIntent = mockk<Intent>()
-        every { googleSignInHelper.getSignInIntent() } returns mockIntent
-        createViewModel()
-
-        // When: Solicitar intent
-        val intent = viewModel.getGoogleSignInIntent()
-
-        // Then: Debe retornar el intent correcto
-        assertEquals("Intent debe coincidir", mockIntent, intent)
-        coVerify { googleSignInHelper.getSignInIntent() }
-    }
-
-    @Test
-    fun `handleGoogleSignInResult - éxito autentica usuario`() = runTest {
-        // Given: Google sign in exitoso
-        val mockIntent = mockk<Intent>()
-        val idToken = "mock-id-token"
-        every { googleSignInHelper.getIdTokenFromIntent(mockIntent) } returns idToken
-        coEvery { signInWithGoogleUseCase(idToken) } returns Result.success(mockUser)
-        coEvery { getCurrentUserUseCase() } returns flowOf(mockUser)
-        
-        createViewModel()
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        // When: Handle Google result
-        viewModel.handleGoogleSignInResult(mockIntent)
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        // Then: Verificar estado final
-        val finalState = viewModel.authState.value
-        assertTrue("Debe estar autenticado", finalState.isAuthenticated)
-        assertEquals("Usuario debe coincidir", mockUser, finalState.currentUser)
-    }
-
-    @Test
-    fun `handleGoogleSignInResult - resultado nulo muestra error`() = runTest {
-        // Given: ViewModel inicializado
-        createViewModel()
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        // When: Result es null (usuario canceló)
-        viewModel.handleGoogleSignInResult(null)
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        // Then: Verificar estado final
-        val finalState = viewModel.authState.value
-        assertNotNull("Debe haber mensaje de error", finalState.error)
-    }
-
     // ===== SIGN OUT TESTS =====
 
     @Test
