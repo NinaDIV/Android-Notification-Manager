@@ -2,6 +2,7 @@ package com.dynamictecnologies.notificationmanager.service.util
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.dynamictecnologies.notificationmanager.service.ServiceNotificationManager
 import com.dynamictecnologies.notificationmanager.service.ServiceStateManager
 import io.mockk.*
 import org.junit.After
@@ -34,6 +35,9 @@ class ServiceDeathDetectorTest {
     private lateinit var sharedPrefsEditor: SharedPreferences.Editor
     private lateinit var statePrefs: SharedPreferences
     private lateinit var statePrefsEditor: SharedPreferences.Editor
+    private lateinit var serviceStateManager: ServiceStateManager
+    private lateinit var serviceNotificationManager: ServiceNotificationManager
+    private lateinit var serviceDeathDetector: ServiceDeathDetector
 
     @Before
     fun setup() {
@@ -63,6 +67,14 @@ class ServiceDeathDetectorTest {
         
         // Setup SharedPreferences para service_death_detector
         every { context.getSharedPreferences("service_death_detector", Context.MODE_PRIVATE) } returns sharedPreferences
+
+        serviceStateManager = ServiceStateManager(statePrefs)
+        serviceNotificationManager = mockk<ServiceNotificationManager>(relaxed = true)
+        serviceDeathDetector = ServiceDeathDetector(
+            serviceStateManager,
+            serviceNotificationManager,
+            sharedPreferences // servicePrefs
+        )
     }
 
     @After
@@ -78,7 +90,7 @@ class ServiceDeathDetectorTest {
         every { statePrefs.getString("current_state", any()) } returns "DISABLED"
 
         // When
-        val result = ServiceDeathDetector.wasServiceKilledUnexpectedly(context)
+        val result = serviceDeathDetector.wasServiceKilledUnexpectedly()
 
         // Then
         assertFalse("No debe detectar muerte si estado es DISABLED", result)
@@ -90,7 +102,7 @@ class ServiceDeathDetectorTest {
         every { sharedPreferences.getBoolean("service_should_be_running", false) } returns false
 
         // When
-        val result = ServiceDeathDetector.wasServiceKilledUnexpectedly(context)
+        val result = serviceDeathDetector.wasServiceKilledUnexpectedly()
 
         // Then
         assertFalse("No debe detectar muerte si servicio no debería correr", result)
@@ -104,7 +116,7 @@ class ServiceDeathDetectorTest {
         every { sharedPreferences.getLong("service_last_heartbeat", 0) } returns 0L
 
         // When
-        val result = ServiceDeathDetector.wasServiceKilledUnexpectedly(context)
+        val result = serviceDeathDetector.wasServiceKilledUnexpectedly()
 
         // Then
         assertTrue("Debe detectar muerte si nunca hubo heartbeat", result)
@@ -119,7 +131,7 @@ class ServiceDeathDetectorTest {
         every { sharedPreferences.getLong("service_last_heartbeat", 0) } returns staleHeartbeat
 
         // When
-        val result = ServiceDeathDetector.wasServiceKilledUnexpectedly(context)
+        val result = serviceDeathDetector.wasServiceKilledUnexpectedly()
 
         // Then
         assertTrue("Debe detectar muerte si heartbeat es muy viejo", result)
@@ -134,7 +146,7 @@ class ServiceDeathDetectorTest {
         every { sharedPreferences.getLong("service_last_heartbeat", 0) } returns recentHeartbeat
 
         // When
-        val result = ServiceDeathDetector.wasServiceKilledUnexpectedly(context)
+        val result = serviceDeathDetector.wasServiceKilledUnexpectedly()
 
         // Then
         assertFalse("No debe detectar muerte si heartbeat es reciente", result)
@@ -145,7 +157,7 @@ class ServiceDeathDetectorTest {
     @Test
     fun `markServiceAsRunning saves state correctly`() {
         // When
-        ServiceDeathDetector.markServiceAsRunning(context)
+        serviceDeathDetector.markServiceAsRunning()
 
         // Then
         verify { sharedPrefsEditor.putBoolean("last_known_running_state", true) }

@@ -23,15 +23,15 @@ import org.robolectric.RobolectricTestRunner
 class ServiceStateManagerTest {
     
     private lateinit var context: Context
+    private lateinit var serviceStateManager: ServiceStateManager
     
     @Before
     fun setUp() {
         context = ApplicationProvider.getApplicationContext()
-        // Limpiar SharedPreferences antes de cada test
-        context.getSharedPreferences("service_state_prefs", Context.MODE_PRIVATE)
-            .edit()
-            .clear()
-            .commit()
+        val prefs = context.getSharedPreferences("service_state_prefs", Context.MODE_PRIVATE)
+        prefs.edit().clear().commit()
+        
+        serviceStateManager = ServiceStateManager(prefs)
     }
     
     @After
@@ -46,7 +46,7 @@ class ServiceStateManagerTest {
     @Test
     fun test_01_defaultStateIsRunning() {
         // Cuando no hay estado guardado, debe retornar RUNNING
-        val state = ServiceStateManager.getCurrentState(context)
+        val state = serviceStateManager.getCurrentState()
         
         assertEquals(
             "Estado por defecto debe ser RUNNING",
@@ -58,66 +58,66 @@ class ServiceStateManagerTest {
     @Test
     fun test_02_setStateRunning() {
         // Establecer estado RUNNING
-        ServiceStateManager.setState(context, ServiceStateManager.ServiceState.RUNNING)
+        serviceStateManager.setState(ServiceStateManager.ServiceState.RUNNING)
         
-        val state = ServiceStateManager.getCurrentState(context)
+        val state = serviceStateManager.getCurrentState()
         assertEquals(ServiceStateManager.ServiceState.RUNNING, state)
     }
     
     @Test
     fun test_03_setStateStopped() {
         // Establecer estado STOPPED
-        ServiceStateManager.setState(context, ServiceStateManager.ServiceState.STOPPED)
+        serviceStateManager.setState(ServiceStateManager.ServiceState.STOPPED)
         
-        val state = ServiceStateManager.getCurrentState(context)
+        val state = serviceStateManager.getCurrentState()
         assertEquals(ServiceStateManager.ServiceState.STOPPED, state)
     }
     
     @Test
     fun test_04_setStateDisabled() {
         // Establecer estado DISABLED
-        ServiceStateManager.setState(context, ServiceStateManager.ServiceState.DISABLED)
+        serviceStateManager.setState(ServiceStateManager.ServiceState.DISABLED)
         
-        val state = ServiceStateManager.getCurrentState(context)
+        val state = serviceStateManager.getCurrentState()
         assertEquals(ServiceStateManager.ServiceState.DISABLED, state)
     }
     
     @Test
     fun test_05_stateTransition_runningToStopped() {
         // Transición RUNNING → STOPPED
-        ServiceStateManager.setState(context, ServiceStateManager.ServiceState.RUNNING)
-        ServiceStateManager.setState(context, ServiceStateManager.ServiceState.STOPPED)
+        serviceStateManager.setState(ServiceStateManager.ServiceState.RUNNING)
+        serviceStateManager.setState(ServiceStateManager.ServiceState.STOPPED)
         
-        val state = ServiceStateManager.getCurrentState(context)
+        val state = serviceStateManager.getCurrentState()
         assertEquals(ServiceStateManager.ServiceState.STOPPED, state)
     }
     
     @Test
     fun test_06_stateTransition_stoppedToDisabled() {
         // Transición STOPPED → DISABLED
-        ServiceStateManager.setState(context, ServiceStateManager.ServiceState.STOPPED)
-        ServiceStateManager.setState(context, ServiceStateManager.ServiceState.DISABLED)
+        serviceStateManager.setState(ServiceStateManager.ServiceState.STOPPED)
+        serviceStateManager.setState(ServiceStateManager.ServiceState.DISABLED)
         
-        val state = ServiceStateManager.getCurrentState(context)
+        val state = serviceStateManager.getCurrentState()
         assertEquals(ServiceStateManager.ServiceState.DISABLED, state)
     }
     
     @Test
     fun test_07_stateTransition_stoppedToRunning() {
         // Transición STOPPED → RUNNING (reinicio)
-        ServiceStateManager.setState(context, ServiceStateManager.ServiceState.STOPPED)
-        ServiceStateManager.setState(context, ServiceStateManager.ServiceState.RUNNING)
+        serviceStateManager.setState(ServiceStateManager.ServiceState.STOPPED)
+        serviceStateManager.setState(ServiceStateManager.ServiceState.RUNNING)
         
-        val state = ServiceStateManager.getCurrentState(context)
+        val state = serviceStateManager.getCurrentState()
         assertEquals(ServiceStateManager.ServiceState.RUNNING, state)
     }
     
     @Test
     fun test_08_canShowStoppedNotification_whenRunningAndNotShown() {
         // Estado RUNNING + no mostrada = true
-        ServiceStateManager.setState(context, ServiceStateManager.ServiceState.RUNNING)
+        serviceStateManager.setState(ServiceStateManager.ServiceState.RUNNING)
         
-        val canShow = ServiceStateManager.canShowStoppedNotification(context)
+        val canShow = serviceStateManager.canShowStoppedNotification()
         
         assertTrue(
             "Debe poder mostrar notificación STOPPED cuando estado es RUNNING y no se ha mostrado",
@@ -128,10 +128,10 @@ class ServiceStateManagerTest {
     @Test
     fun test_09_canShowStoppedNotification_whenRunningButAlreadyShown() {
         // Estado RUNNING + ya mostrada = false
-        ServiceStateManager.setState(context, ServiceStateManager.ServiceState.RUNNING)
-        ServiceStateManager.markStoppedNotificationShown(context)
+        serviceStateManager.setState(ServiceStateManager.ServiceState.RUNNING)
+        serviceStateManager.markStoppedNotificationShown()
         
-        val canShow = ServiceStateManager.canShowStoppedNotification(context)
+        val canShow = serviceStateManager.canShowStoppedNotification()
         
         assertFalse(
             "NO debe mostrar notificación STOPPED si ya fue mostrada en esta sesión",
@@ -142,9 +142,9 @@ class ServiceStateManagerTest {
     @Test
     fun test_10_canShowStoppedNotification_whenStopped() {
         // Estado STOPPED = false
-        ServiceStateManager.setState(context, ServiceStateManager.ServiceState.STOPPED)
+        serviceStateManager.setState(ServiceStateManager.ServiceState.STOPPED)
         
-        val canShow = ServiceStateManager.canShowStoppedNotification(context)
+        val canShow = serviceStateManager.canShowStoppedNotification()
         
         assertFalse(
             "NO debe mostrar notificación STOPPED cuando estado ya es STOPPED",
@@ -155,9 +155,9 @@ class ServiceStateManagerTest {
     @Test
     fun test_11_canShowStoppedNotification_whenDisabled() {
         // Estado DISABLED = false
-        ServiceStateManager.setState(context, ServiceStateManager.ServiceState.DISABLED)
+        serviceStateManager.setState(ServiceStateManager.ServiceState.DISABLED)
         
-        val canShow = ServiceStateManager.canShowStoppedNotification(context)
+        val canShow = serviceStateManager.canShowStoppedNotification()
         
         assertFalse(
             "NO debe mostrar notificación STOPPED cuando estado es DISABLED",
@@ -167,102 +167,102 @@ class ServiceStateManagerTest {
     
     @Test
     fun test_12_markStoppedNotificationShown() {
-        ServiceStateManager.setState(context, ServiceStateManager.ServiceState.RUNNING)
+        serviceStateManager.setState(ServiceStateManager.ServiceState.RUNNING)
         
         // Antes de marcar
-        assertTrue(ServiceStateManager.canShowStoppedNotification(context))
+        assertTrue(serviceStateManager.canShowStoppedNotification())
         
         // Marcar como mostrada
-        ServiceStateManager.markStoppedNotificationShown(context)
+        serviceStateManager.markStoppedNotificationShown()
         
         // Después de marcar
-        assertFalse(ServiceStateManager.canShowStoppedNotification(context))
+        assertFalse(serviceStateManager.canShowStoppedNotification())
     }
     
     @Test
     fun test_13_stoppedCounterIncrement() {
         // Contador debe incrementar
-        assertEquals(0, ServiceStateManager.getStoppedCount(context))
+        assertEquals(0, serviceStateManager.getStoppedCount())
         
-        ServiceStateManager.markStoppedNotificationShown(context)
-        assertEquals(1, ServiceStateManager.getStoppedCount(context))
+        serviceStateManager.markStoppedNotificationShown()
+        assertEquals(1, serviceStateManager.getStoppedCount())
         
-        ServiceStateManager.resetStoppedCounter(context)
-        ServiceStateManager.markStoppedNotificationShown(context)
-        assertEquals(2, ServiceStateManager.getStoppedCount(context))
+        serviceStateManager.resetStoppedCounter()
+        serviceStateManager.markStoppedNotificationShown()
+        assertEquals(2, serviceStateManager.getStoppedCount())
     }
     
     @Test
     fun test_14_resetStoppedCounter() {
-        ServiceStateManager.setState(context, ServiceStateManager.ServiceState.RUNNING)
-        ServiceStateManager.markStoppedNotificationShown(context)
+        serviceStateManager.setState(ServiceStateManager.ServiceState.RUNNING)
+        serviceStateManager.markStoppedNotificationShown()
         
         // Después de marcar, no puede mostrar
-        assertFalse(ServiceStateManager.canShowStoppedNotification(context))
+        assertFalse(serviceStateManager.canShowStoppedNotification())
         
         // Resetear contador
-        ServiceStateManager.resetStoppedCounter(context)
+        serviceStateManager.resetStoppedCounter()
         
         // Ahora puede mostrar otra vez
-        assertTrue(ServiceStateManager.canShowStoppedNotification(context))
+        assertTrue(serviceStateManager.canShowStoppedNotification())
     }
     
     @Test
     fun test_15_resetOnAppOpen_fromDisabledToRunning() {
         // Simular que usuario eligió "Entendido" (DISABLED)
-        ServiceStateManager.setState(context, ServiceStateManager.ServiceState.DISABLED)
-        assertEquals(ServiceStateManager.ServiceState.DISABLED, ServiceStateManager.getCurrentState(context))
+        serviceStateManager.setState(ServiceStateManager.ServiceState.DISABLED)
+        assertEquals(ServiceStateManager.ServiceState.DISABLED, serviceStateManager.getCurrentState())
         
         // Usuario abre app de nuevo
-        ServiceStateManager.resetOnAppOpen(context)
+        serviceStateManager.resetOnAppOpen()
         
         // Estado debe cambiar a RUNNING
         assertEquals(
             "resetOnAppOpen() debe cambiar DISABLED → RUNNING",
             ServiceStateManager.ServiceState.RUNNING,
-            ServiceStateManager.getCurrentState(context)
+            serviceStateManager.getCurrentState()
         )
     }
     
     @Test
     fun test_16_resetOnAppOpen_fromStoppedStaysStopped() {
         // Si estado es STOPPED, debe mantenerse
-        ServiceStateManager.setState(context, ServiceStateManager.ServiceState.STOPPED)
-        ServiceStateManager.resetOnAppOpen(context)
+        serviceStateManager.setState(ServiceStateManager.ServiceState.STOPPED)
+        serviceStateManager.resetOnAppOpen()
         
         // STOPPED no cambia automáticamente
         assertEquals(
             "STOPPED debe mantenerse (no es DISABLED)",
             ServiceStateManager.ServiceState.STOPPED,
-            ServiceStateManager.getCurrentState(context)
+            serviceStateManager.getCurrentState()
         )
     }
     
     @Test
     fun test_17_resetOnAppOpen_resetsCounter() {
         // Marcar notificación como mostrada
-        ServiceStateManager.setState(context, ServiceStateManager.ServiceState.RUNNING)
-        ServiceStateManager.markStoppedNotificationShown(context)
-        assertFalse(ServiceStateManager.canShowStoppedNotification(context))
+        serviceStateManager.setState(ServiceStateManager.ServiceState.RUNNING)
+        serviceStateManager.markStoppedNotificationShown()
+        assertFalse(serviceStateManager.canShowStoppedNotification())
         
         // resetOnAppOpen debe resetear contador
-        ServiceStateManager.resetOnAppOpen(context)
+        serviceStateManager.resetOnAppOpen()
         
         // Ahora puede mostrar otra vez
         assertTrue(
             "resetOnAppOpen() debe resetear contador de notificaciones",
-            ServiceStateManager.canShowStoppedNotification(context)
+            serviceStateManager.canShowStoppedNotification()
         )
     }
     
     @Test
     fun test_18_getTimeSinceLastStateChange() {
-        ServiceStateManager.setState(context, ServiceStateManager.ServiceState.RUNNING)
+        serviceStateManager.setState(ServiceStateManager.ServiceState.RUNNING)
         
         // Wait a bit
         Thread.sleep(100)
         
-        val timeSince = ServiceStateManager.getTimeSinceLastStateChange(context)
+        val timeSince = serviceStateManager.getTimeSinceLastStateChange()
         
         assertTrue(
             "Debe haber pasado al menos 100ms desde último cambio",
@@ -273,16 +273,19 @@ class ServiceStateManagerTest {
     @Test
     fun test_19_statePersistence() {
         // Establecer estado
-        ServiceStateManager.setState(context, ServiceStateManager.ServiceState.STOPPED)
+        serviceStateManager.setState(ServiceStateManager.ServiceState.STOPPED)
         
-        // Obtener nuevo contexto (simula reinicio de app)
-        val newContext = ApplicationProvider.getApplicationContext<Context>()
+        // Obtener nuevo contexto y prefs (simula reinicio de app)
+        val newPrefs = ApplicationProvider.getApplicationContext<Context>()
+            .getSharedPreferences("service_state_prefs", Context.MODE_PRIVATE)
+        
+        val newManager = ServiceStateManager(newPrefs)
         
         // Estado debe persistir
         assertEquals(
             "Estado debe persistir en SharedPreferences",
             ServiceStateManager.ServiceState.STOPPED,
-            ServiceStateManager.getCurrentState(newContext)
+            newManager.getCurrentState()
         )
     }
     
@@ -291,32 +294,32 @@ class ServiceStateManagerTest {
         // Test de ciclo completo
         
         // 1. App inicia (RUNNING)
-        ServiceStateManager.setState(context, ServiceStateManager.ServiceState.RUNNING)
-        assertTrue(ServiceStateManager.canShowStoppedNotification(context))
+        serviceStateManager.setState(ServiceStateManager.ServiceState.RUNNING)
+        assertTrue(serviceStateManager.canShowStoppedNotification())
         
         // 2. Servicio muere, mostrar STOPPED
-        ServiceStateManager.markStoppedNotificationShown(context)
-        ServiceStateManager.setState(context, ServiceStateManager.ServiceState.STOPPED)
-        assertFalse(ServiceStateManager.canShowStoppedNotification(context))
-        assertEquals(1, ServiceStateManager.getStoppedCount(context))
+        serviceStateManager.markStoppedNotificationShown()
+        serviceStateManager.setState(ServiceStateManager.ServiceState.STOPPED)
+        assertFalse(serviceStateManager.canShowStoppedNotification())
+        assertEquals(1, serviceStateManager.getStoppedCount())
         
         // 3. Usuario presiona "Reiniciar"
-        ServiceStateManager.setState(context, ServiceStateManager.ServiceState.RUNNING)
-        ServiceStateManager.resetStoppedCounter(context)
-        assertTrue(ServiceStateManager.canShowStoppedNotification(context))
+        serviceStateManager.setState(ServiceStateManager.ServiceState.RUNNING)
+        serviceStateManager.resetStoppedCounter()
+        assertTrue(serviceStateManager.canShowStoppedNotification())
         
         // 4. Servicio muere otra vez
-        ServiceStateManager.markStoppedNotificationShown(context)
-        ServiceStateManager.setState(context, ServiceStateManager.ServiceState.STOPPED)
-        assertEquals(2, ServiceStateManager.getStoppedCount(context))
+        serviceStateManager.markStoppedNotificationShown()
+        serviceStateManager.setState(ServiceStateManager.ServiceState.STOPPED)
+        assertEquals(2, serviceStateManager.getStoppedCount())
         
         // 5. Usuario presiona "Entendido"
-        ServiceStateManager.setState(context, ServiceStateManager.ServiceState.DISABLED)
-        assertFalse(ServiceStateManager.canShowStoppedNotification(context))
+        serviceStateManager.setState(ServiceStateManager.ServiceState.DISABLED)
+        assertFalse(serviceStateManager.canShowStoppedNotification())
         
         // 6. Usuario abre app de nuevo
-        ServiceStateManager.resetOnAppOpen(context)
-        assertEquals(ServiceStateManager.ServiceState.RUNNING, ServiceStateManager.getCurrentState(context))
-        assertTrue(ServiceStateManager.canShowStoppedNotification(context))
+        serviceStateManager.resetOnAppOpen()
+        assertEquals(ServiceStateManager.ServiceState.RUNNING, serviceStateManager.getCurrentState())
+        assertTrue(serviceStateManager.canShowStoppedNotification())
     }
 }

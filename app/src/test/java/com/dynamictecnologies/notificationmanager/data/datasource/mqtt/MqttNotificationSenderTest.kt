@@ -111,7 +111,7 @@ class MqttNotificationSenderTest {
     }
 
     @Test
-    fun `sendNotification includes user info in payload when set`() = runTest {
+    fun `sendNotification includes user info in state but not in payload`() = runTest {
         // Given
         every { mockConnectionManager.isConnected() } returns true
         var capturedPayload = ""
@@ -134,8 +134,12 @@ class MqttNotificationSenderTest {
 
         // Then
         assertTrue("Result should be success", result.isSuccess)
-        assertTrue("Payload should contain userId", capturedPayload.contains("user123"))
-        assertTrue("Payload should contain username", capturedPayload.contains("testuser"))
+        // SEGURIDAD: El payload NO debe contener userId ni username para evitar leakage en MQTT
+        assertFalse("Payload NO debe contener userId por seguridad", capturedPayload.contains("user123"))
+        assertFalse("Payload NO debe contener username por seguridad", capturedPayload.contains("testuser"))
+        
+        // El formato debe ser App|Title|Content\n
+        assertTrue("Payload debe seguir el formato App|Title|Content", capturedPayload.contains("App|Test|Content"))
     }
 
     @Test

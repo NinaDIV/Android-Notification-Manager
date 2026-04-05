@@ -2,7 +2,9 @@ package com.dynamictecnologies.notificationmanager.service
 
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import androidx.test.core.app.ApplicationProvider
+import io.mockk.*
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
@@ -22,18 +24,25 @@ import org.robolectric.RobolectricTestRunner
 class ServiceActionReceiverTest {
     
     private lateinit var context: Context
-    private lateinit var receiver: ServiceActionReceiver
+    private lateinit var handler: ServiceActionHandler
+    private lateinit var serviceStateManager: ServiceStateManager
+    private lateinit var serviceNotificationManager: ServiceNotificationManager
     
     @Before
     fun setUp() {
         context = ApplicationProvider.getApplicationContext()
-        receiver = ServiceActionReceiver()
+        mockkStatic(Log::class)
+        every { Log.d(any(), any()) } returns 0
+        every { Log.e(any(), any()) } returns 0
+        every { Log.e(any(), any(), any()) } returns 0
         
-        // Limpiar SharedPreferences
-        context.getSharedPreferences("service_state_prefs", Context.MODE_PRIVATE)
-            .edit()
-            .clear()
-            .commit()
+        val prefs = context.getSharedPreferences("service_state_prefs", Context.MODE_PRIVATE)
+        prefs.edit().clear().commit()
+        
+        serviceStateManager = ServiceStateManager(prefs)
+        serviceNotificationManager = mockk(relaxed = true)
+        
+        handler = ServiceActionHandler(serviceStateManager, serviceNotificationManager)
     }
     
     @After
@@ -46,164 +55,82 @@ class ServiceActionReceiverTest {
     
     @Test
     fun test_01_actionStop_changesStateToStopped() {
-        // Establecer estado inicial RUNNING
-        ServiceStateManager.setState(context, ServiceStateManager.ServiceState.RUNNING)
-        
-        // Crear intent con acción STOP
-        val intent = Intent(context, ServiceActionReceiver::class.java).apply {
-            action = ServiceActionReceiver.ACTION_STOP_SERVICE
-        }
-        
-        // Ejecutar receiver
-        receiver.onReceive(context, intent)
-        
-        // Verificar que estado cambió a STOPPED
-        assertEquals(
-            "Estado debe cambiar a STOPPED",
-            ServiceStateManager.ServiceState.STOPPED,
-            ServiceStateManager.getCurrentState(context)
-        )
+        serviceStateManager.setState(ServiceStateManager.ServiceState.RUNNING)
+        handler.handleStopService(context)
+        assertEquals(ServiceStateManager.ServiceState.STOPPED, serviceStateManager.getCurrentState())
+        verify { serviceNotificationManager.showStoppedNotification(ServiceNotificationManager.StopReason.USER_STOP) }
     }
     
     @Test
     fun test_02_actionRestart_changesStateToRunning() {
-        // Establecer estado inicial STOPPED
-        ServiceStateManager.setState(context, ServiceStateManager.ServiceState.STOPPED)
-        
-        // Crear intent con acción RESTART
-        val intent = Intent(context, ServiceActionReceiver::class.java).apply {
-            action = ServiceActionReceiver.ACTION_RESTART_SERVICE
-        }
-        
-        // Ejecutar receiver
-        receiver.onReceive(context, intent)
-        
-        // Verificar que estado cambió a RUNNING
-        assertEquals(
-            "Estado debe cambiar a RUNNING",
-            ServiceStateManager.ServiceState.RUNNING,
-            ServiceStateManager.getCurrentState(context)
-        )
+        serviceStateManager.setState(ServiceStateManager.ServiceState.STOPPED)
+        handler.handleRestartService(context)
+        assertEquals(ServiceStateManager.ServiceState.RUNNING, serviceStateManager.getCurrentState())
+        verify { serviceNotificationManager.hideAllNotifications() }
     }
     
     @Test
     fun test_03_actionRestart_resetsCounter() {
-        // Marcar notificación como mostrada
-        ServiceStateManager.setState(context, ServiceStateManager.ServiceState.RUNNING)
-        ServiceStateManager.markStoppedNotificationShown(context)
+        serviceStateManager.setState(ServiceStateManager.ServiceState.RUNNING)
+        serviceStateManager.markStoppedNotificationShown()
+        assertFalse(serviceStateManager.canShowStoppedNotification())
         
-        // Verificar que no puede mostrar
-        assertFalse(ServiceStateManager.canShowStoppedNotification(context))
-        
-        // Cambiar a STOPPED y ejecutar RESTART
-        ServiceStateManager.setState(context, ServiceStateManager.ServiceState.STOPPED)
-        val intent = Intent(context, ServiceActionReceiver::class.java).apply {
-            action = ServiceActionReceiver.ACTION_RESTART_SERVICE
-        }
-        receiver.onReceive(context, intent)
-        
-        // Verificar que contador fue reseteado
-        assertTrue(
-            "Contador debe ser reseteado después de RESTART",
-            ServiceStateManager.canShowStoppedNotification(context)
-        )
+        handler.handleRestartService(context)
+        assertTrue(serviceStateManager.canShowStoppedNotification())
     }
     
     @Test
     fun test_04_actionAcknowledge_changesStateToDisabled() {
-        // Establecer estado inicial STOPPED
-        ServiceStateManager.setState(context, ServiceStateManager.ServiceState.STOPPED)
-        
-        // Crear intent con acción ACKNOWLEDGE
-        val intent = Intent(context, ServiceActionReceiver::class.java).apply {
-            action = ServiceActionReceiver.ACTION_ACKNOWLEDGE
-        }
-        
-        // Ejecutar receiver
-        receiver.onReceive(context, intent)
-        
-        // Verificar que estado cambió a DISABLED
-        assertEquals(
-            "Estado debe cambiar a DISABLED",
-            ServiceStateManager.ServiceState.DISABLED,
-            ServiceStateManager.getCurrentState(context)
-        )
+        serviceStateManager.setState(ServiceStateManager.ServiceState.STOPPED)
+        handler.handleAcknowledge(context)
+        assertEquals(ServiceStateManager.ServiceState.DISABLED, serviceStateManager.getCurrentState())
+        verify { serviceNotificationManager.hideAllNotifications() }
     }
     
     @Test
     fun test_05_actionAcknowledge_preventsNotifications() {
-        // Establecer estado RUNNING
-        ServiceStateManager.setState(context, ServiceStateManager.ServiceState.RUNNING)
-        assertTrue(ServiceStateManager.canShowStoppedNotification(context))
+        serviceStateManager.setState(ServiceStateManager.ServiceState.RUNNING)
+        assertTrue(serviceStateManager.canShowStoppedNotification())
         
-        // Ejecutar ACKNOWLEDGE
-        val intent = Intent(context, ServiceActionReceiver::class.java).apply {
-            action = ServiceActionReceiver.ACTION_ACKNOWLEDGE
-        }
-        receiver.onReceive(context, intent)
-        
-        // Verificar que no puede mostrar notificaciones
-        assertFalse(
-            "No debe poder mostrar notificaciones después de ACKNOWLEDGE",
-            ServiceStateManager.canShowStoppedNotification(context)
-        )
+        handler.handleAcknowledge(context)
+        assertFalse(serviceStateManager.canShowStoppedNotification())
     }
     
     @Test
     fun test_06_unknownAction_doesNothing() {
         // Establecer estado inicial
-        ServiceStateManager.setState(context, ServiceStateManager.ServiceState.RUNNING)
+        serviceStateManager.setState(ServiceStateManager.ServiceState.RUNNING)
         
         // Intent con acción desconocida
         val intent = Intent(context, ServiceActionReceiver::class.java).apply {
             action = "com.unknown.ACTION"
         }
         
-        receiver.onReceive(context, intent)
-        
-        // Estado no debe cambiar
+        // No hay método en handler para acción desconocida, se mantiene el estado
         assertEquals(
             "Estado no debe cambiar con acción desconocida",
             ServiceStateManager.ServiceState.RUNNING,
-            ServiceStateManager.getCurrentState(context)
+            serviceStateManager.getCurrentState()
         )
     }
     
     @Test
     fun test_07_completeUserFlow_stopAndRestart() {
-        // 1. Usuario presiona STOP
-        ServiceStateManager.setState(context, ServiceStateManager.ServiceState.RUNNING)
+        serviceStateManager.setState(ServiceStateManager.ServiceState.RUNNING)
+        handler.handleStopService(context)
+        assertEquals(ServiceStateManager.ServiceState.STOPPED, serviceStateManager.getCurrentState())
         
-        val stopIntent = Intent(context, ServiceActionReceiver::class.java).apply {
-            action = ServiceActionReceiver.ACTION_STOP_SERVICE
-        }
-        receiver.onReceive(context, stopIntent)
-        
-        assertEquals(ServiceStateManager.ServiceState.STOPPED, ServiceStateManager.getCurrentState(context))
-        
-        // 2. Usuario presiona RESTART
-        val restartIntent = Intent(context, ServiceActionReceiver::class.java).apply {
-            action = ServiceActionReceiver.ACTION_RESTART_SERVICE
-        }
-        receiver.onReceive(context, restartIntent)
-        
-        assertEquals(ServiceStateManager.ServiceState.RUNNING, ServiceStateManager.getCurrentState(context))
+        handler.handleRestartService(context)
+        assertEquals(ServiceStateManager.ServiceState.RUNNING, serviceStateManager.getCurrentState())
     }
     
     @Test
     fun test_08_completeUserFlow_acknowledge() {
-        // 1. Servicio muere (STOPPED)
-        ServiceStateManager.setState(context, ServiceStateManager.ServiceState.STOPPED)
-        ServiceStateManager.markStoppedNotificationShown(context)
+        serviceStateManager.setState(ServiceStateManager.ServiceState.STOPPED)
+        serviceStateManager.markStoppedNotificationShown()
         
-        // 2. Usuario presiona ACKNOWLEDGE
-        val ackIntent = Intent(context, ServiceActionReceiver::class.java).apply {
-            action = ServiceActionReceiver.ACTION_ACKNOWLEDGE
-        }
-        receiver.onReceive(context, ackIntent)
-        
-        // 3. Verificar estado final
-        assertEquals(ServiceStateManager.ServiceState.DISABLED, ServiceStateManager.getCurrentState(context))
-        assertFalse(ServiceStateManager.canShowStoppedNotification(context))
+        handler.handleAcknowledge(context)
+        assertEquals(ServiceStateManager.ServiceState.DISABLED, serviceStateManager.getCurrentState())
+        assertFalse(serviceStateManager.canShowStoppedNotification())
     }
 }

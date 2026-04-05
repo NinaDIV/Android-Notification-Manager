@@ -18,11 +18,13 @@ class ServiceStateManager @Inject constructor(
     @ServicePrefs private val prefs: SharedPreferences
 ) {
     
-    private const val KEY_CURRENT_STATE = "current_state"
-    private const val KEY_STOPPED_SHOWN = "stopped_notification_shown"
-    private const val KEY_STOPPED_COUNT = "stopped_notification_count"
-    private const val KEY_LAST_STATE_CHANGE = "last_state_change_time"
-    private const val KEY_DEGRADED_REASON = "degraded_reason"
+    companion object {
+        private const val KEY_CURRENT_STATE = "current_state"
+        private const val KEY_STOPPED_SHOWN = "stopped_notification_shown"
+        private const val KEY_STOPPED_COUNT = "stopped_notification_count"
+        private const val KEY_LAST_STATE_CHANGE = "last_state_change_time"
+        private const val KEY_DEGRADED_REASON = "degraded_reason"
+    }
     
     enum class ServiceState {
         RUNNING,    // [OK] Operativo completo
