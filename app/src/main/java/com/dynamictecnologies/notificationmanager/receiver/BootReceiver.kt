@@ -22,6 +22,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.cancel
 
 /**
  * Receptor que se activa cuando el dispositivo se inicia.
@@ -88,6 +89,8 @@ class BootReceiver : BroadcastReceiver() {
                 } catch (e: Exception) {
                     Log.e(TAG, "Error al iniciar servicio tras arranque: ${e.message}")
                 } finally {
+                    // Limpiar la corrutina para evitar fugas de memoria
+                    scope.cancel()
                     // CRÍTICO: Siempre finalizar el PendingResult para liberar recursos
                     pendingResult.finish()
                 }

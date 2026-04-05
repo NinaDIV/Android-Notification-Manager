@@ -22,7 +22,11 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.dynamictecnologies.notificationmanager.MainActivity
 import com.dynamictecnologies.notificationmanager.R
+import com.dynamictecnologies.notificationmanager.di.ServicePrefs
 import com.dynamictecnologies.notificationmanager.util.BatteryOptimizationHelper
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
+import android.content.SharedPreferences
 import com.dynamictecnologies.notificationmanager.data.datasource.mqtt.MqttConnectionManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
@@ -37,7 +41,19 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
 import java.util.*
 
+@AndroidEntryPoint
 class NotificationForegroundService : Service() {
+    
+    @Inject
+    lateinit var serviceStateManager: ServiceStateManager
+    
+    @Inject
+    lateinit var serviceNotificationManager: ServiceNotificationManager
+    
+    @Inject
+    @ServicePrefs
+    lateinit var servicePrefs: SharedPreferences
+    
     private val CHANNEL_ID = "notification_manager_service"
     private val NOTIFICATION_ID = 1
     
@@ -94,7 +110,7 @@ class NotificationForegroundService : Service() {
         Log.d(TAG, "Servicio en primer plano creado")
         
         // Establecer estado como RUNNING
-        ServiceStateManager.setState(this, ServiceStateManager.ServiceState.RUNNING)
+        serviceStateManager.setState(ServiceStateManager.ServiceState.RUNNING)
         
         // Adquirir wake lock parcial para mantener servicio activo
         try {
@@ -110,7 +126,7 @@ class NotificationForegroundService : Service() {
         }
         
         // Mostrar notificación dinámica de RUNNING
-        val notification = ServiceNotificationManager(this).showRunningNotification()
+        val notification = serviceNotificationManager.showRunningNotification()
         
         // Iniciar servicio en primer plano con la notificación dinámica
         startForeground(ServiceNotificationManager.NOTIFICATION_ID_RUNNING, notification)
@@ -123,8 +139,7 @@ class NotificationForegroundService : Service() {
         
         // Registrar receiver para cambios de red (WiFi/Datos) - Observer Pattern
         registerNetworkObserver()
-        val prefs = getSharedPreferences("service_state", Context.MODE_PRIVATE)
-        prefs.edit().putBoolean("service_should_be_running", true).apply()
+        servicePrefs.edit().putBoolean("service_should_be_running", true).apply()
         
         // Iniciar heartbeat para watchdog externo (WorkManager backup)
         startHeartbeat()
@@ -173,13 +188,13 @@ class NotificationForegroundService : Service() {
             Log.w(TAG, "[WARN] Permiso de NotificationListener revocado")
             
             // OBSERVER: Permiso revocado -> DEGRADED
-            ServiceStateManager.setDegradedState(this, ServiceStateManager.DegradedReason.PERMISSION_REVOKED)
+            serviceStateManager.setDegradedState(ServiceStateManager.DegradedReason.PERMISSION_REVOKED)
             
             // Detener el foreground para quitar la notificación verde
             stopForeground(STOP_FOREGROUND_REMOVE)
             
             // Mostrar notificación amarilla
-            ServiceNotificationManager(this).showStoppedNotification(
+            serviceNotificationManager.showStoppedNotification(
                 ServiceNotificationManager.StopReason.PERMISSION_REVOKED
             )
             
@@ -187,11 +202,11 @@ class NotificationForegroundService : Service() {
             stopSelf()
         } else {
             // Si el permiso fue restaurado y estábamos en DEGRADED, volver a RUNNING
-            val currentState = ServiceStateManager.getCurrentState(this)
+            val currentState = serviceStateManager.getCurrentState()
             if (currentState == ServiceStateManager.ServiceState.DEGRADED) {
                 Log.d(TAG, "[OK] Permiso restaurado - volviendo a estado RUNNING")
-                ServiceStateManager.setState(this, ServiceStateManager.ServiceState.RUNNING)
-                ServiceNotificationManager(this).showRunningNotification()
+                serviceStateManager.setState(ServiceStateManager.ServiceState.RUNNING)
+                serviceNotificationManager.showRunningNotification()
             }
         }
     }
@@ -246,19 +261,19 @@ class NotificationForegroundService : Service() {
             Log.w(TAG, "[WARN] Modo ahorro detectado: PowerSave=$isPowerSave, Doze=$isDoze")
             
             // Solo mostrar advertencia si el servicio sigue corriendo
-            val currentState = ServiceStateManager.getCurrentState(this)
+            val currentState = serviceStateManager.getCurrentState()
             if (currentState == ServiceStateManager.ServiceState.RUNNING) {
                 // Actualizar notificación a amarillo pero NO detener servicio
-                ServiceNotificationManager(this).showStoppedNotification(
+                serviceNotificationManager.showStoppedNotification(
                     ServiceNotificationManager.StopReason.POWER_RESTRICTED
                 )
             }
         } else {
             // Si salimos del modo ahorro, restaurar notificación verde
-            val currentState = ServiceStateManager.getCurrentState(this)
+            val currentState = serviceStateManager.getCurrentState()
             if (currentState == ServiceStateManager.ServiceState.RUNNING) {
                 Log.d(TAG, "[OK] Modo ahorro desactivado - restaurando estado normal")
-                ServiceNotificationManager(this).showRunningNotification()
+                serviceNotificationManager.showRunningNotification()
             }
         }
     }
@@ -349,11 +364,9 @@ class NotificationForegroundService : Service() {
      */
     private fun startHeartbeat() {
         heartbeatJob = serviceScope.launch {
-            val prefs = getSharedPreferences("service_state", Context.MODE_PRIVATE)
-            
             while (isActive) {
                 // Actualizar timestamp
-                prefs.edit().putLong("service_last_heartbeat", System.currentTimeMillis()).apply()
+                servicePrefs.edit().putLong("service_last_heartbeat", System.currentTimeMillis()).apply()
                 Log.d(TAG, "[STATUS] Heartbeat actualizado")
                 
                 delay(HEARTBEAT_INTERVAL)
@@ -409,8 +422,7 @@ class NotificationForegroundService : Service() {
             Log.w(TAG, "[WARN] App NO está exenta de optimización de batería - servicio puede detenerse en Doze mode")
             
             // Guardar que necesitamos solicitar exención (para mostrar en UI)
-            val prefs = getSharedPreferences("service_state", Context.MODE_PRIVATE)
-            prefs.edit().putBoolean("needs_battery_exemption", true).apply()
+            servicePrefs.edit().putBoolean("needs_battery_exemption", true).apply()
             
             // Intentar solicitar exención directamente
             // NOTA: Esto abrirá un diálogo del sistema
@@ -423,8 +435,7 @@ class NotificationForegroundService : Service() {
             }
         } else {
             Log.d(TAG, "[OK] App está exenta de optimización de batería")
-            val prefs = getSharedPreferences("service_state", Context.MODE_PRIVATE)
-            prefs.edit().putBoolean("needs_battery_exemption", false).apply()
+            servicePrefs.edit().putBoolean("needs_battery_exemption", false).apply()
         }
     }
     
@@ -564,8 +575,7 @@ class NotificationForegroundService : Service() {
         // La notificación verde ya está visible y el servicio sigue monitoreando.
         
         // Solo registrar el evento para diagnóstico
-        val prefs = getSharedPreferences("service_state", Context.MODE_PRIVATE)
-        prefs.edit().putLong("last_task_removed", System.currentTimeMillis()).apply()
+        servicePrefs.edit().putLong("last_task_removed", System.currentTimeMillis()).apply()
     }
     
     override fun onBind(intent: Intent?): IBinder? = null
@@ -659,7 +669,7 @@ class NotificationForegroundService : Service() {
         }
         
         // Verificar estado actual
-        val currentState = ServiceStateManager.getCurrentState(this)
+        val currentState = serviceStateManager.getCurrentState()
         
         // Si el estado es STOPPED o DISABLED, el usuario detuvo intencionalmente
         // NO intentar reiniciar automáticamente
@@ -669,8 +679,7 @@ class NotificationForegroundService : Service() {
             Log.d(TAG, "Servicio detenido intencionalmente o degradado (estado: $currentState)")
             
             // Limpiar flag para que watchdog no lo detecte como muerte
-            val prefs = getSharedPreferences("service_state", Context.MODE_PRIVATE)
-            prefs.edit().putBoolean("service_should_be_running", false).apply()
+            servicePrefs.edit().putBoolean("service_should_be_running", false).apply()
             
             return // Salir sin intentar reiniciar
         }
@@ -679,8 +688,8 @@ class NotificationForegroundService : Service() {
         Log.w(TAG, "Servicio murió inesperadamente")
         
         // OBSERVER: Muerte inesperada -> STOPPED
-        ServiceStateManager.setState(this, ServiceStateManager.ServiceState.STOPPED)
-        ServiceNotificationManager(this).showStoppedNotification(
+        serviceStateManager.setState(ServiceStateManager.ServiceState.STOPPED)
+        serviceNotificationManager.showStoppedNotification(
             ServiceNotificationManager.StopReason.UNEXPECTED
         )
         
@@ -690,7 +699,7 @@ class NotificationForegroundService : Service() {
     
     private fun tryAutomaticRestart() {
         // Solo reiniciar automáticamente si el estado es RUNNING
-        if (ServiceStateManager.getCurrentState(this) != ServiceStateManager.ServiceState.RUNNING) {
+        if (serviceStateManager.getCurrentState() != ServiceStateManager.ServiceState.RUNNING) {
             Log.d(TAG, "No reiniciar automáticamente - Usuario no quiere el servicio")
             return
         }

@@ -122,9 +122,7 @@ fun AppNavigation(
             val mainNavController = rememberNavController()
             
             AppScaffold(
-                navController = mainNavController,
-                onSettingsClick = { /* TODO: Implementar configuración */ },
-                onShareClick = { /* Compartir removido */ }
+                navController = mainNavController
             ) { paddingModifier ->
                 // NavHost anidado para el contenido principal
                 MainNavGraph(

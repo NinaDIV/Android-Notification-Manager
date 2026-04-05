@@ -17,11 +17,8 @@ import kotlinx.coroutines.flow.asStateFlow
  * - Clean Architecture: Implementación en capa de datos
  */
 class DevicePairingRepositoryImpl(
-    context: Context
+    private val prefs: SharedPreferences
 ) : DevicePairingRepository {
-    
-    private val prefs: SharedPreferences = 
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     
     private val _currentPairing = MutableStateFlow<DevicePairing?>(loadPairing())
     

@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.util.Log
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 /**
  * Receptor de acciones de usuario en las notificaciones del servicio.
@@ -15,7 +17,14 @@ import android.util.Log
  * 2. RESTART: Usuario presiona "Reiniciar" en notificación stopped
  * 3. ACKNOWLEDGE: Usuario presiona "Entendido" en notificación stopped
  */
+@AndroidEntryPoint
 class ServiceActionReceiver : BroadcastReceiver() {
+    
+    @Inject
+    lateinit var serviceStateManager: ServiceStateManager
+    
+    @Inject
+    lateinit var serviceNotificationManager: ServiceNotificationManager
     
     companion object {
         private const val TAG = "ServiceAction"
@@ -44,7 +53,7 @@ class ServiceActionReceiver : BroadcastReceiver() {
         
         // IMPORTANTE: Cambiar estado a STOPPED de forma SÍNCRONA
         // para evitar race condition con auto-restart en onDestroy()
-        ServiceStateManager.setStateSync(context, ServiceStateManager.ServiceState.STOPPED)
+        serviceStateManager.setStateSync(ServiceStateManager.ServiceState.STOPPED)
         
         // Detener el servicio
         try {
@@ -55,7 +64,7 @@ class ServiceActionReceiver : BroadcastReceiver() {
         }
         
         // Mostrar notificación NARANJA (usuario detuvo intencionalmente)
-        ServiceNotificationManager(context).showStoppedNotification(
+        serviceNotificationManager.showStoppedNotification(
             ServiceNotificationManager.StopReason.USER_STOP
         )
         
@@ -70,10 +79,10 @@ class ServiceActionReceiver : BroadcastReceiver() {
         Log.d(TAG, "Usuario presionó REINICIAR")
         
         // Cambiar estado a RUNNING
-        ServiceStateManager.setState(context, ServiceStateManager.ServiceState.RUNNING)
+        serviceStateManager.setState(ServiceStateManager.ServiceState.RUNNING)
         
         // Resetear contador (puede mostrar stopped notification otra vez si vuelve a morir)
-        ServiceStateManager.resetStoppedCounter(context)
+        serviceStateManager.resetStoppedCounter()
         
         // Reiniciar el servicio
         try {
@@ -87,12 +96,12 @@ class ServiceActionReceiver : BroadcastReceiver() {
             Log.d(TAG, "Servicio reiniciado exitosamente")
             
             // Ocultar notificación roja explícitamente (verde se mostrará en onCreate del servicio)
-            ServiceNotificationManager(context).hideAllNotifications()
+            serviceNotificationManager.hideAllNotifications()
         } catch (e: Exception) {
             Log.e(TAG, "Error reiniciando servicio: ${e.message}")
             
             // Si falla, volver a mostrar notificación de error
-            ServiceNotificationManager(context).showStoppedNotification(ServiceNotificationManager.StopReason.ERROR)
+            serviceNotificationManager.showStoppedNotification(ServiceNotificationManager.StopReason.ERROR)
         }
         
         // La notificación de running se mostrará en onCreate() del servicio
@@ -106,7 +115,7 @@ class ServiceActionReceiver : BroadcastReceiver() {
         Log.d(TAG, "Usuario presionó ENTENDIDO - Deteniendo todo definitivamente")
         
         // Cambiar estado a DISABLED
-        ServiceStateManager.setState(context, ServiceStateManager.ServiceState.DISABLED)
+        serviceStateManager.setState(ServiceStateManager.ServiceState.DISABLED)
         
         // Detener el servicio
         try {
@@ -137,7 +146,7 @@ class ServiceActionReceiver : BroadcastReceiver() {
         // }
         
         // Ocultar todas las notificaciones
-        ServiceNotificationManager(context).hideAllNotifications()
+        serviceNotificationManager.hideAllNotifications()
         
         Log.d(TAG, "TODO detenido. Solo se reactivará cuando usuario abra la app de nuevo")
     }

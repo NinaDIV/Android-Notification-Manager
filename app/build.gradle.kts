@@ -133,6 +133,15 @@ dependencies {
     // Google Play Services
     implementation("com.google.android.gms:play-services-auth:20.7.0")
     
+    // Credential Manager for Google Sign In
+    implementation(libs.credentials)
+    implementation(libs.credentials.play.services)
+    implementation(libs.googleid)
+
+    // Hilt Work
+    implementation(libs.androidx.hilt.work)
+    ksp(libs.androidx.hilt.compiler)
+
     // Security - Encrypted SharedPreferences
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
 

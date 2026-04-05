@@ -7,7 +7,7 @@ import com.dynamictecnologies.notificationmanager.data.datasource.mqtt.MqttDevic
 import com.dynamictecnologies.notificationmanager.data.datasource.mqtt.MqttDeviceScanner
 import com.dynamictecnologies.notificationmanager.data.datasource.mqtt.MqttMessageHandler
 import com.dynamictecnologies.notificationmanager.data.datasource.mqtt.MqttNotificationSender
-import com.dynamictecnologies.notificationmanager.data.datasource.mqtt.MqttReconnectionStrategy
+
 import com.dynamictecnologies.notificationmanager.data.datasource.mqtt.MqttSubscriptionManager
 import com.dynamictecnologies.notificationmanager.data.repository.DevicePairingRepositoryImpl
 import com.dynamictecnologies.notificationmanager.domain.repositories.DevicePairingRepository
@@ -66,13 +66,6 @@ object BluetoothMqttHiltModule {
         MqttMessageHandler(context)
     
     @Provides
-    fun provideMqttReconnectionStrategy(
-        connectionManager: MqttConnectionManager,
-        subscriptionManager: MqttSubscriptionManager
-    ): MqttReconnectionStrategy =
-        MqttReconnectionStrategy(connectionManager, subscriptionManager)
-    
-    @Provides
     fun provideMqttDeviceLinkManager(
         connectionManager: MqttConnectionManager,
         subscriptionManager: MqttSubscriptionManager
@@ -85,8 +78,12 @@ object BluetoothMqttHiltModule {
     
     @Provides
     @Singleton
-    fun provideDevicePairingRepository(@ApplicationContext context: Context): DevicePairingRepository =
-        DevicePairingRepositoryImpl(context)
+    fun provideDevicePairingRepository(
+        @ApplicationContext context: Context
+    ): DevicePairingRepository =
+        DevicePairingRepositoryImpl(
+            context.getSharedPreferences("device_pairing", Context.MODE_PRIVATE)
+        )
     
     // ========================================
     // USE CASES

@@ -247,7 +247,11 @@ fun AppListScreen(
                                 }
 
                                 try {
-                                    context.startService(serviceIntent)
+                                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                                        context.startForegroundService(serviceIntent)
+                                    } else {
+                                        context.startService(serviceIntent)
+                                    }
                                     Log.d("Button", "Intent con ACTION_FORCE_RESET enviado a NotificationForegroundService")
                                     scope.launch {
                                         snackbarHostState.showSnackbar(

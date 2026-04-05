@@ -24,6 +24,7 @@ fun LoginScreen(
     val authState by authViewModel.authState.collectAsState()
     val loginFormState by authViewModel.loginFormState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     LaunchedEffect(authState.isAuthenticated) {
         if (authState.isAuthenticated) {
@@ -42,12 +43,7 @@ fun LoginScreen(
         }
     }
 
-    // Configurar el launcher para el inicio de sesión con Google
-    val googleSignInLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        authViewModel.handleGoogleSignInResult(result.data)
-    }
+    // El launcher ya no es necesario con CredentialManager
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) }
@@ -127,8 +123,7 @@ fun LoginScreen(
 
             Button(
                 onClick = {
-                    val intent = authViewModel.getGoogleSignInIntent()
-                    googleSignInLauncher.launch(intent)
+                    authViewModel.signInWithGoogle(context)
                 },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !authState.isLoading

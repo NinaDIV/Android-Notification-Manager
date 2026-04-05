@@ -13,6 +13,11 @@ import com.dynamictecnologies.notificationmanager.util.device.DeviceManufacturer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import androidx.hilt.work.HiltWorker
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedInject
+import android.content.SharedPreferences
+import com.dynamictecnologies.notificationmanager.di.ServicePrefs
 
 /**
  * Worker que verifica la salud del servicio periódicamente.
@@ -30,9 +35,12 @@ import kotlinx.coroutines.withContext
  * 
  * - Robustez: Funciona incluso si servicio es matado agresivamente
  */
-class ServiceHealthCheckWorker(
-    context: Context,
-    params: WorkerParameters
+@HiltWorker
+class ServiceHealthCheckWorker @AssistedInject constructor(
+    @Assisted context: Context,
+    @Assisted params: WorkerParameters,
+    private val serviceNotificationManager: ServiceNotificationManager,
+    @ServicePrefs private val servicePrefs: SharedPreferences
 ) : CoroutineWorker(context, params) {
 
     companion object {
@@ -64,8 +72,7 @@ class ServiceHealthCheckWorker(
         
         return try {
             // 1. Verificar si el servicio debería estar corriendo
-            val prefs = applicationContext.getSharedPreferences("service_state", Context.MODE_PRIVATE)
-            val shouldBeRunning = prefs.getBoolean("service_should_be_running", false)
+            val shouldBeRunning = servicePrefs.getBoolean("service_should_be_running", false)
             
             if (!shouldBeRunning) {
                 Log.d(TAG, "Servicio no debería estar corriendo (usuario lo detuvo)")
@@ -73,7 +80,7 @@ class ServiceHealthCheckWorker(
             }
             
             // 2. Verificar heartbeat (timestamp)
-            val lastHeartbeat = prefs.getLong("service_last_heartbeat", 0)
+            val lastHeartbeat = servicePrefs.getLong("service_last_heartbeat", 0)
             val timeSinceHeartbeat = System.currentTimeMillis() - lastHeartbeat
             
             if (lastHeartbeat == 0L) {
@@ -161,14 +168,13 @@ class ServiceHealthCheckWorker(
         
         // 4. AHORA: Mostrar notificación roja (en Main thread)
         withContext(Dispatchers.Main) {
-            ServiceNotificationManager(applicationContext).showStoppedNotification()
+            serviceNotificationManager.showStoppedNotification()
         }
         
         // 5. Registrar evento para diagnóstico
-        val prefs = applicationContext.getSharedPreferences("service_state", Context.MODE_PRIVATE)
-        prefs.edit().apply {
+        servicePrefs.edit().apply {
             putLong("last_death_detected", System.currentTimeMillis())
-            putInt("death_count", prefs.getInt("death_count", 0) + 1)
+            putInt("death_count", servicePrefs.getInt("death_count", 0) + 1)
             // Marcar que el servicio ya no debería estar corriendo
             putBoolean("service_should_be_running", false)
             apply()

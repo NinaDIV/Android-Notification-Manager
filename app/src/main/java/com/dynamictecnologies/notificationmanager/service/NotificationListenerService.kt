@@ -22,6 +22,7 @@ import kotlinx.coroutines.*
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
+import com.dynamictecnologies.notificationmanager.domain.repositories.PreferencesRepository
 
 /**
  * Servicio de escucha de notificaciones refactorizado siguiendo principios SOLID.
@@ -76,6 +77,9 @@ class NotificationListenerService : NotificationListenerService() {
     @Inject lateinit var repository: NotificationRepository
     @Inject lateinit var sendNotificationUseCase: com.dynamictecnologies.notificationmanager.domain.usecases.device.SendNotificationToDeviceUseCase
     @Inject lateinit var devicePairingRepository: com.dynamictecnologies.notificationmanager.domain.repositories.DevicePairingRepository
+    @Inject lateinit var preferencesRepository: PreferencesRepository
+    @Inject lateinit var serviceStateManager: ServiceStateManager
+    @Inject lateinit var serviceNotificationManager: ServiceNotificationManager
     
     // Estado de inicialización - true si componentes fallaron al inicializar
     private val isDegraded = AtomicBoolean(false)
@@ -198,8 +202,8 @@ class NotificationListenerService : NotificationListenerService() {
             .apply()
         
         // OBSERVER: Conexión exitosa -> VERDE
-        ServiceStateManager.setState(applicationContext, ServiceStateManager.ServiceState.RUNNING)
-        ServiceNotificationManager(applicationContext).showRunningNotification()
+        serviceStateManager.setState(ServiceStateManager.ServiceState.RUNNING)
+        serviceNotificationManager.showRunningNotification()
         
         // Descartar notificaciones de crash al conectar exitosamente
         crashNotifier.dismissAllNotifications()
@@ -210,8 +214,8 @@ class NotificationListenerService : NotificationListenerService() {
         Log.w(TAG, "Listener desconectado")
         
         // OBSERVER: Desconexión inesperada -> ROJO
-        ServiceStateManager.setState(applicationContext, ServiceStateManager.ServiceState.STOPPED)
-        ServiceNotificationManager(applicationContext).showStoppedNotification(
+        serviceStateManager.setState(ServiceStateManager.ServiceState.STOPPED)
+        serviceNotificationManager.showStoppedNotification(
             ServiceNotificationManager.StopReason.UNEXPECTED
         )
         
@@ -347,8 +351,7 @@ class NotificationListenerService : NotificationListenerService() {
     private fun getPrefs() = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     
     private fun getSelectedApp() = 
-        getSharedPreferences("app_preferences", Context.MODE_PRIVATE)
-            .getString("last_selected_app", null)
+        preferencesRepository.getLastSelectedApp()
     
     private fun getAppName(packageName: String): String {
         return try {

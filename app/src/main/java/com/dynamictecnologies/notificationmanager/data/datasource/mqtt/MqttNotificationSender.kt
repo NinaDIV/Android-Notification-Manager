@@ -2,7 +2,6 @@ package com.dynamictecnologies.notificationmanager.data.datasource.mqtt
 
 import com.dynamictecnologies.notificationmanager.data.model.NotificationInfo
 import com.dynamictecnologies.notificationmanager.domain.repositories.NotificationSender
-import org.json.JSONObject
 
 /**
  * Sender para envío de notificaciones vía MQTT.
@@ -50,8 +49,8 @@ class MqttNotificationSender(
             val topic = "esp32/device/$deviceId/notification"
             val payload = buildNotificationPayload(notification)
             
-            // Retornar el resultado de publish
-            connectionManager.publish(topic, payload, qos = 1)
+            // Retornar el resultado de publish con QoS 0 (efímero, más rápido)
+            connectionManager.publish(topic, payload, qos = 0)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -93,7 +92,7 @@ class MqttNotificationSender(
             android.util.Log.d(TAG, "Payload: $payload")
             
             // Retornar el resultado de publish
-            val result = connectionManager.publish(topic, payload, qos = 1)
+            val result = connectionManager.publish(topic, payload, qos = 0)
             if (result.isSuccess) {
                 android.util.Log.d(TAG, "[OK] Notificación enviada exitosamente a $topic")
             } else {
@@ -116,14 +115,10 @@ class MqttNotificationSender(
             }
             
             val topic = "/notificaciones/general"
-            val json = JSONObject().apply {
-                put("title", title)
-                put("content", content)
-                put("timestamp", System.currentTimeMillis())
-            }.toString()
+            val payload = "SYSTEM|$title|$content\n"
             
             // Retornar el resultado de publish
-            connectionManager.publish(topic, json)
+            connectionManager.publish(topic, payload, qos = 0)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -147,15 +142,11 @@ class MqttNotificationSender(
                 return Result.failure(Exception("MQTT no conectado"))
             }
             
-            val payload = JSONObject().apply {
-                put("type", "connection")
-                put("username", username.take(16)) // Limitar a 16 chars para LCD
-                put("timestamp", System.currentTimeMillis())
-            }.toString()
+            val payload = "CONEXION|${username.take(16)}\n"
             
             android.util.Log.d(TAG, "Payload conexión: $payload")
             
-            val result = connectionManager.publish(topic, payload, qos = 1)
+            val result = connectionManager.publish(topic, payload, qos = 0)
             if (result.isSuccess) {
                 android.util.Log.d(TAG, "[OK] Notificación de conexión enviada a $topic")
             } else {
@@ -186,15 +177,11 @@ class MqttNotificationSender(
                 return Result.failure(Exception("MQTT no conectado"))
             }
             
-            val payload = JSONObject().apply {
-                put("type", "disconnect")
-                put("username", username.take(16))
-                put("timestamp", System.currentTimeMillis())
-            }.toString()
+            val payload = "DESCONEXION|${username.take(16)}\n"
             
             android.util.Log.d(TAG, "Payload desconexión: $payload")
             
-            val result = connectionManager.publish(topic, payload, qos = 1)
+            val result = connectionManager.publish(topic, payload, qos = 0)
             if (result.isSuccess) {
                 android.util.Log.d(TAG, "[OK] Notificación de desconexión enviada a $topic")
             } else {
@@ -215,28 +202,24 @@ class MqttNotificationSender(
      * - Limita payload a MAX_PAYLOAD_SIZE bytes para evitar buffer overflow en ESP32
      */
     private fun buildNotificationPayload(notification: NotificationInfo): String {
-        // Calcular espacio disponible para contenido dinámico
-        // JSON base: {"title":"","content":"","appName":"","timestamp":0000000000000,"id":0}
-        // ~70 bytes de overhead JSON
-        val jsonOverhead = 70
-        val maxContentSize = MAX_PAYLOAD_SIZE - jsonOverhead
+        // Formato crudo: AppName|Title|Content\n
+        // Quitamos ~70 bytes de overhead de JSON
+        // Esto facilita el parsing en la ESP32 usando .split("|") o strtok en C++
+        val maxContentSize = MAX_PAYLOAD_SIZE - 4 // Los pipes y el newline
         
-        // Truncar campos para respetar límite
+        val appNameMaxLen = minOf(30, maxContentSize / 4)
         val titleMaxLen = minOf(50, maxContentSize / 3)
         val contentMaxLen = minOf(120, maxContentSize / 2)
-        val appNameMaxLen = minOf(30, maxContentSize / 4)
         
-        val truncatedTitle = notification.title.take(titleMaxLen)
-        val truncatedContent = notification.content.take(contentMaxLen)
-        val truncatedAppName = notification.appName.take(appNameMaxLen)
+        // Removemos cualquier salto de linea o pipe en el contenido para no romper el formato
+        val safeAppName = notification.appName.replace("|", "").replace("\n", " ")
+        val safeTitle = notification.title.replace("|", "").replace("\n", " ")
+        val safeContent = notification.content.replace("|", "").replace("\n", " ")
         
-        return JSONObject().apply {
-            put("title", truncatedTitle)
-            put("content", truncatedContent)
-            put("appName", truncatedAppName)
-            put("timestamp", notification.timestamp.time)
-            put("id", notification.id)
-            // SEGURIDAD: userId y username REMOVIDOS - no necesarios para ESP32
-        }.toString()
+        val truncatedAppName = safeAppName.take(appNameMaxLen)
+        val truncatedTitle = safeTitle.take(titleMaxLen)
+        val truncatedContent = safeContent.take(contentMaxLen)
+        
+        return "$truncatedAppName|$truncatedTitle|$truncatedContent\n"
     }
 }
