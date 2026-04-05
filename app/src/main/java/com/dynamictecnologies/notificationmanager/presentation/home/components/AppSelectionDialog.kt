@@ -26,7 +26,10 @@ fun AppSelectionDialog(
                     .fillMaxWidth()
                     .heightIn(max = 400.dp)
             ) {
-                items(apps) { app ->
+                items(
+                    items = apps,
+                    key = { it.packageName }
+                ) { app ->
                     AppListItem(
                         app = app,
                         onClick = {

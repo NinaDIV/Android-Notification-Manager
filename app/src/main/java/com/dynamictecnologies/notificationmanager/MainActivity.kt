@@ -12,6 +12,7 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.rememberNavController
@@ -25,6 +26,7 @@ import com.dynamictecnologies.notificationmanager.service.util.ServiceDeathDetec
 
 import com.dynamictecnologies.notificationmanager.presentation.core.theme.NotificationManagerTheme
 import com.dynamictecnologies.notificationmanager.util.PermissionHelper
+import com.dynamictecnologies.notificationmanager.util.PermissionDialogCoordinator
 import com.dynamictecnologies.notificationmanager.presentation.core.dialog.PermissionDialogContent
 import com.dynamictecnologies.notificationmanager.viewmodel.*
 import androidx.compose.runtime.mutableStateOf
@@ -61,6 +63,8 @@ class MainActivity : ComponentActivity() {
     
     // Estado Compose para el diálogo de permisos
     private var showPermissionDialogState = mutableStateOf(false)
+    
+    private lateinit var permissionCoordinator: PermissionDialogCoordinator
 
     // ViewModels inyectados por Hilt (reemplaza factories manuales)
     private val authViewModel: AuthViewModel by viewModels()
@@ -71,38 +75,40 @@ class MainActivity : ComponentActivity() {
     // Repositorios inyectados por Hilt
     @Inject lateinit var notificationRepository: NotificationRepository
     @Inject lateinit var authRepository: AuthRepository
+    @Inject lateinit var serviceStateManager: ServiceStateManager
+    @Inject lateinit var serviceDeathDetector: ServiceDeathDetector
     
     // Permission launcher para POST_NOTIFICATIONS (Android 13+)
-    private val notificationPermissionLauncher = registerForActivityResult(
+    private val notificationPermissionLauncher: ActivityResultLauncher<String> = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
+    ) { isGranted: Boolean ->
         if (isGranted) {
             Log.d("MainActivity", "[OK] Permiso POST_NOTIFICATIONS otorgado")
             // Iniciar servicio después de obtener permiso
             startNotificationService()
         } else {
             Log.w("MainActivity", "[WARN] Permiso POST_NOTIFICATIONS denegado")
-            // Mostrar diálogo explicativo
-            showNotificationPermissionRationale()
+            // Mostrar diálogo explicativo a través del coordinador
+            permissionCoordinator.showNotificationPermissionRationale(notificationPermissionLauncher)
         }
     }
     
     // Permission launcher para permisos de Bluetooth
-    private val bluetoothPermissionLauncher = registerForActivityResult(
+    private val bluetoothPermissionLauncher: ActivityResultLauncher<Array<String>> = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
+    ) { permissions: Map<String, Boolean> ->
         val allGranted = permissions.values.all { it }
         if (allGranted) {
             Log.d("MainActivity", "Permisos Bluetooth otorgados")
             checkAndEnableBluetooth()
         } else {
             Log.w("MainActivity", "Algunos permisos Bluetooth fueron denegados")
-            showBluetoothPermissionRationale()
+            permissionCoordinator.showBluetoothPermissionRationale(bluetoothPermissionLauncher)
         }
     }
 
     // Launcher para habilitar Bluetooth
-    private val enableBluetoothLauncher = registerForActivityResult(
+    private val enableBluetoothLauncher: ActivityResultLauncher<Intent> = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == RESULT_OK) {
@@ -110,7 +116,7 @@ class MainActivity : ComponentActivity() {
             devicePairingViewModel.startBluetoothScan()
         } else {
             Log.w("MainActivity", "Usuario rechazó habilitar Bluetooth")
-            showBluetoothEnableRationale()
+            permissionCoordinator.showBluetoothEnableRationale(enableBluetoothLauncher)
         }
     }
     
@@ -137,7 +143,7 @@ class MainActivity : ComponentActivity() {
         val bluetoothAdapter = bluetoothManager.adapter
         
         if (bluetoothAdapter == null) {
-            showBluetoothNotSupportedDialog()
+            permissionCoordinator.showBluetoothNotSupportedDialog()
             return
         }
         
@@ -151,62 +157,6 @@ class MainActivity : ComponentActivity() {
         }
     }
     
-    /**
-     * Muestra diálogo cuando el dispositivo no soporta Bluetooth.
-     */
-    private fun showBluetoothNotSupportedDialog() {
-        runOnUiThread {
-            AlertDialog.Builder(this)
-                .setTitle("Bluetooth No Disponible")
-                .setMessage("Tu dispositivo no soporta Bluetooth.")
-                .setPositiveButton("Entendido") { dialog, _ ->
-                    dialog.dismiss()
-                }
-                .show()
-        }
-    }
-    
-    /**
-     * Muestra explicación de por qué se necesita habilitar Bluetooth.
-     */
-    private fun showBluetoothEnableRationale() {
-        runOnUiThread {
-            AlertDialog.Builder(this)
-                .setTitle("Bluetooth Requerido")
-                .setMessage("Para conectar con tu dispositivo ESP32, necesitas habilitar Bluetooth.\n\n¿Deseas habilitarlo ahora?")
-                .setPositiveButton("Habilitar") { dialog, _ ->
-                    val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
-                    enableBluetoothLauncher.launch(enableBtIntent)
-                    dialog.dismiss()
-                }
-                .setNegativeButton("Ahora no") { dialog, _ ->
-                    dialog.dismiss()
-                }
-                .show()
-        }
-    }
-    
-    /**
-     * Muestra explicación de por qué se necesitan permisos Bluetooth.
-     */
-    private fun showBluetoothPermissionRationale() {
-        runOnUiThread {
-            AlertDialog.Builder(this)
-                .setTitle("Permisos Bluetooth")
-                .setMessage("Esta app necesita permisos de Bluetooth para conectar con tu dispositivo ESP32.\\n\\n¿Deseas otorgar los permisos?")
-                .setPositiveButton("Permitir") { dialog: android.content.DialogInterface, _: Int ->
-                    val permissions = PermissionHelper.getRequiredBluetoothPermissions()
-                    bluetoothPermissionLauncher.launch(permissions)
-                    dialog.dismiss()
-                }
-                .setNegativeButton("Ahora no") { dialog: android.content.DialogInterface, _: Int ->
-                    dialog.dismiss()
-                    Log.w("MainActivity", "Usuario rechazó permisos Bluetooth")
-                }
-                .show()
-        }
-    }
-
     // BroadcastReceiver para manejar solicitudes de permisos
     private val permissionBroadcastReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -230,12 +180,14 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
+        permissionCoordinator = PermissionDialogCoordinator(this)
+        
         // IMPORTANTE: Detectar si el servicio murió mientras la app estaba cerrada
         // Esto debe ir ANTES de resetOnAppOpen para poder verificar el estado previo
-        ServiceDeathDetector.handleDeathOnAppStart(this)
+        serviceDeathDetector.handleDeathOnAppStart()
         
         // IMPORTANTE: Resetear estado del servicio cuando usuario abre la app
-        ServiceStateManager.resetOnAppOpen(this)
+        serviceStateManager.resetOnAppOpen()
         
         // Registrar el receiver para permisos
         registerPermissionReceiver()
@@ -330,7 +282,7 @@ class MainActivity : ComponentActivity() {
                 }
                 shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS) -> {
                     // Mostrar explicación antes de pedir permiso
-                    showNotificationPermissionRationale()
+                    permissionCoordinator.showNotificationPermissionRationale(notificationPermissionLauncher)
                 }
                 else -> {
                     // Pedir permiso directamente
@@ -341,28 +293,6 @@ class MainActivity : ComponentActivity() {
         } else {
             // Android < 13, no necesita permiso POST_NOTIFICATIONS
             startNotificationService()
-        }
-    }
-    
-    /**
-     * Muestra explicación de por qué necesitamos el permiso de notificaciones
-     */
-    private fun showNotificationPermissionRationale() {
-        runOnUiThread {
-            AlertDialog.Builder(this)
-                .setTitle("Permiso de Notificaciones")
-                .setMessage("Esta app necesita permiso para mostrar notificaciones persistentes que te informan cuando el servicio está activo.\n\n¿Deseas otorgar el permiso?")
-                .setPositiveButton("Permitir") { dialog: android.content.DialogInterface, _: Int ->
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                    }
-                    dialog.dismiss()
-                }
-                .setNegativeButton("Ahora no") { dialog: android.content.DialogInterface, _: Int ->
-                    dialog.dismiss()
-                    Log.w("MainActivity", "Usuario rechazó permiso de notificaciones")
-                }
-                .show()
         }
     }
     

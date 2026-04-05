@@ -115,8 +115,8 @@ class MqttConnectionManager(
         return try {
             
             val options = MqttConnectOptions().apply {
-                // Sesión persistente para no perder mensajes offline
-                isCleanSession = false
+                // Sesión limpia (true) para evitar saturación de mensajes viejos offline en QoS 1, ya que usaremos QoS 0 a partir de ahora
+                isCleanSession = true
                 connectionTimeout = 60
                 // Keep-alive de 3 minutos para detectar desconexiones más rápido
                 keepAliveInterval = 180
@@ -190,7 +190,7 @@ class MqttConnectionManager(
      * @param qos Quality of Service (0, 1, 2)
      * @return Result<Unit> Success si se publica correctamente
      */
-    suspend fun publish(topic: String, payload: String, qos: Int = 1): Result<Unit> {
+    suspend fun publish(topic: String, payload: String, qos: Int = 0): Result<Unit> {
         return try {
             if (!isConnected()) {
                 return Result.failure(Exception("MQTT no conectado"))

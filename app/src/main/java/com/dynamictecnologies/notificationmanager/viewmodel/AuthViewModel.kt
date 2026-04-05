@@ -18,7 +18,6 @@ import com.dynamictecnologies.notificationmanager.domain.usecases.SignInWithGoog
 import com.dynamictecnologies.notificationmanager.domain.usecases.SignOutUseCase
 import com.dynamictecnologies.notificationmanager.domain.usecases.ValidateSessionUseCase
 import com.dynamictecnologies.notificationmanager.presentation.auth.GoogleSignInHelper
-import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.FirebaseUser
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -172,40 +171,25 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    fun getGoogleSignInIntent(): Intent {
-        return googleSignInHelper.getSignInIntent()
-    }
-
-    fun handleGoogleSignInResult(result: Intent?) {
+    fun signInWithGoogle(context: android.content.Context) {
         viewModelScope.launch {
             try {
                 _authState.value = _authState.value.copy(isLoading = true, error = null)
-
-                if (result == null) {
-                    _authState.value = _authState.value.copy(
-                        error = "Error al obtener resultado de Google Sign In",
-                        isLoading = false
-                    )
-                    return@launch
+                val idToken = googleSignInHelper.signInWithGoogle(context)
+                
+                if (idToken != null) {
+                    executeAuthOperation {
+                        signInWithGoogleUseCase(idToken)
+                    }
+                } else {
+                    // Usuario canceló explícitamente el diálogo o retrocedió
+                    _authState.value = _authState.value.copy(isLoading = false)
                 }
-
-                val idToken = googleSignInHelper.getIdTokenFromIntent(result)
-                executeAuthOperation {
-                    signInWithGoogleUseCase(idToken)
-                }
-
-            } catch (e: ApiException) {
-                _authState.value = _authState.value.copy(
-                    error = "Error de Google Sign In: ${e.localizedMessage}",
-                    isLoading = false
-                )
-            } catch (e: IllegalStateException) {
-                _authState.value = _authState.value.copy(
-                    error = e.message ?: "Error desconocido",
-                    isLoading = false
-                )
             } catch (e: Exception) {
-                handleException(e)
+                _authState.value = _authState.value.copy(
+                    error = e.message ?: "Error desconocido en Google Sign-In",
+                    isLoading = false
+                )
             }
         }
     }

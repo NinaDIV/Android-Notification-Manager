@@ -20,8 +20,6 @@ import com.dynamictecnologies.notificationmanager.presentation.core.navigation.A
 @Composable
 fun AppScaffold(
     navController: NavController,
-    onSettingsClick: () -> Unit = {},
-    onShareClick: () -> Unit = {},
     content: @Composable (innerPadding: Modifier) -> Unit
 ) {
     // Determinar la pantalla actual basada en la ruta de navegación
@@ -38,9 +36,7 @@ fun AppScaffold(
     Scaffold(
         topBar = {
             AppTopBar(
-                currentScreen = currentScreen,
-                onSettingsClick = onSettingsClick,
-                onShareClick = onShareClick
+                currentScreen = currentScreen
             )
         },
         bottomBar = {

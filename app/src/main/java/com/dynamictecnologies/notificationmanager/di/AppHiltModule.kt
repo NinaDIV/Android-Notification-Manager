@@ -48,7 +48,13 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import javax.inject.Named
+import javax.inject.Qualifier
 import javax.inject.Singleton
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class ServicePrefs
 
 /**
  * Módulo Hilt principal que provee todas las dependencias del proyecto.
@@ -185,6 +191,12 @@ object AppHiltModule {
     @Singleton
     fun provideSharedPreferences(@ApplicationContext context: Context): SharedPreferences =
         context.getSharedPreferences("app_preferences", Context.MODE_PRIVATE)
+
+    @Provides
+    @Singleton
+    @ServicePrefs
+    fun provideServiceSharedPreferences(@ApplicationContext context: Context): SharedPreferences =
+        context.getSharedPreferences("service_state_prefs", Context.MODE_PRIVATE)
     
     @Provides
     fun providePreferencesRepository(sharedPreferences: SharedPreferences): PreferencesRepository =

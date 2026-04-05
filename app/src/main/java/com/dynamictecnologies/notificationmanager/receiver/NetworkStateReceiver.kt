@@ -13,6 +13,8 @@ import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import android.content.BroadcastReceiver.PendingResult
+import kotlinx.coroutines.cancel
 
 /**
  * Receiver para detectar cambios en el estado de la red.
@@ -46,7 +48,8 @@ class NetworkStateReceiver : BroadcastReceiver() {
         // Solo actuar si pasamos de desconectado a conectado
         if (isConnected && !lastKnownConnected) {
             Log.d(TAG, "Red recuperada - intentando reconectar MQTT")
-            tryReconnectMqtt(context)
+            val pendingResult = goAsync()
+            tryReconnectMqtt(context, pendingResult)
         }
         
         lastKnownConnected = isConnected
@@ -72,10 +75,11 @@ class NetworkStateReceiver : BroadcastReceiver() {
     }
     
     /**
-     * Intenta reconectar MQTT de forma asíncrona.
+     * Intenta reconectar MQTT de forma asíncrona respaldado por el BroadcastReceiver.
      */
-    private fun tryReconnectMqtt(context: Context) {
-        CoroutineScope(Dispatchers.IO).launch {
+    private fun tryReconnectMqtt(context: Context, pendingResult: PendingResult) {
+        val scope = CoroutineScope(Dispatchers.IO)
+        scope.launch {
             try {
                 if (!mqttManager.isConnected()) {
                     Log.d(TAG, "MQTT desconectado, intentando reconectar...")
@@ -91,6 +95,9 @@ class NetworkStateReceiver : BroadcastReceiver() {
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error en reconexión MQTT: ${e.message}", e)
+            } finally {
+                scope.cancel()
+                pendingResult.finish()
             }
         }
     }

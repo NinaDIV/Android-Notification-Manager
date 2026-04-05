@@ -81,7 +81,10 @@ fun DeviceSelectionDialog(
                             .heightIn(max = 300.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(devices) { device ->
+                        items(
+                            items = devices,
+                            key = { it.address }
+                        ) { device ->
                             BluetoothDeviceCard(
                                 device = device,
                                 onClick = { onDeviceSelected(device) }

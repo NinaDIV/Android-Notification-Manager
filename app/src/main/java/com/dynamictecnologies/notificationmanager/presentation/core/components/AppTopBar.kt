@@ -23,8 +23,6 @@ import com.dynamictecnologies.notificationmanager.presentation.core.navigation.A
 fun AppTopBar(
     title: String = "Notification Manager",
     currentScreen: AppScreen? = null,
-    onSettingsClick: () -> Unit = {},
-    onShareClick: () -> Unit = {},
     navigationIcon: @Composable (() -> Unit)? = null,
     additionalActions: @Composable (RowScope.() -> Unit) = {}
 ) {
